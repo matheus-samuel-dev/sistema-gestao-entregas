@@ -1,0 +1,19 @@
+{
+  "name": "LogiTrack - Gestao de Entregas",
+  "short_name": "LogiTrack",
+  "icons": [
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#003d2f",
+  "background_color": "#f5f8f7",
+  "display": "standalone"
+}
