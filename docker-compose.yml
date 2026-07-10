@@ -38,8 +38,7 @@ services:
 
       LOGITRACK_JWT_SECRET: ${LOGITRACK_JWT_SECRET:-LogiTrackDockerJwtSecretKeyWithAtLeastThirtyTwoCharacters2026}
 
-      LOGITRACK_ALLOWED_ORIGINS: ${LOGITRACK_ALLOWED_ORIGINS:-https://gestaoentregas.duckdns.org}
-
+      LOGITRACK_ALLOWED_ORIGINS: "https://gestaoentregas.15-228-45-207.sslip.io"
     ports:
       - "127.0.0.1:18080:8080"
 
