@@ -26,17 +26,37 @@ vi.mock('./components/DeliveryMap', () => ({
 
 const dashboard = {
   metrics: [
-    { key: 'ordersToday', title: 'Pedidos hoje', value: '15', variation: '+10%', trend: 'up' },
-    { key: 'activeDeliveries', title: 'Entregas em andamento', value: '5', variation: '+5%', trend: 'up' },
-    { key: 'completedDeliveries', title: 'Entregas concluidas', value: '8', variation: '+2%', trend: 'up' },
-    { key: 'openIncidents', title: 'Ocorrencias abertas', value: '2', variation: '-1', trend: 'down' },
-    { key: 'successRate', title: 'Taxa de sucesso', value: '96.3%', variation: '+4%', trend: 'up' }
+    { key: 'activeDeliveries', title: 'Entregas em andamento', value: '5', variation: 'monitoradas agora', trend: 'up' },
+    { key: 'delayedDeliveries', title: 'Entregas atrasadas', value: '1', variation: 'requer ação', trend: 'down' },
+    { key: 'completedDeliveries', title: 'Entregas concluídas', value: '8', variation: 'finalizadas hoje', trend: 'up' },
+    { key: 'successRate', title: 'Taxa de sucesso', value: '96.3%', variation: 'base total', trend: 'up' },
+    { key: 'averageDeliveryTime', title: 'Tempo médio', value: '2h 10min', variation: 'entregas concluídas', trend: 'up' },
+    { key: 'monthRevenue', title: 'Receita do mês', value: 'R$ 15.000,00', variation: 'pedidos faturados', trend: 'up' },
+    { key: 'activeDrivers', title: 'Motoristas ativos', value: '4', variation: 'disponíveis ou em rota', trend: 'up' },
+    { key: 'ordersToday', title: 'Pedidos hoje', value: '15', variation: 'entrada operacional', trend: 'up' }
   ],
   deliveriesByStatus: [{ label: 'A caminho', value: 5, color: '#2563eb' }],
-  dayPerformance: [{ label: '08:00', value: 12 }],
+  dayPerformance: [{ label: '08h', value: 12 }],
   deliveriesByPeriod: [{ label: '01/07', value: 6 }],
   incidentsByType: [{ label: 'Atraso', value: 2, color: '#ef4444' }],
-  realtimeDeliveries: [],
+  realtimeDeliveries: [
+    {
+      id: 1,
+      orderNumber: '#10451',
+      customerName: 'Cliente Teste',
+      driverName: 'João Silva',
+      status: 'ON_THE_WAY',
+      statusLabel: 'A caminho',
+      progress: 60,
+      currentLat: -23.55,
+      currentLng: -46.63,
+      originLat: -23.529,
+      originLng: -46.737,
+      destinationLat: -23.561,
+      destinationLng: -46.655,
+      color: '#2563eb'
+    }
+  ],
   upcomingDeliveries: [],
   recentIncidents: [],
   activeDeliveries: []
@@ -67,10 +87,10 @@ describe('App navigation', () => {
 
   it('renders dashboard for authenticated users', async () => {
     localStorage.setItem('logitrack.token', 'jwt-token');
-    localStorage.setItem('logitrack.user', JSON.stringify({ id: 1, name: 'Joao Silva', email: 'admin@logitrack.com', role: 'ADMIN' }));
+    localStorage.setItem('logitrack.user', JSON.stringify({ id: 1, name: 'João Silva', email: 'admin@logitrack.com', role: 'ADMIN' }));
     vi.mocked(api.get).mockImplementation((url: string) => {
       if (url === '/auth/me') {
-        return Promise.resolve({ data: { id: 1, name: 'Joao Silva', email: 'admin@logitrack.com', role: 'ADMIN' } });
+        return Promise.resolve({ data: { id: 1, name: 'João Silva', email: 'admin@logitrack.com', role: 'ADMIN' } });
       }
       if (url === '/dashboard') {
         return Promise.resolve({ data: dashboard });

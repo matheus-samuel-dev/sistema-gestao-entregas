@@ -69,23 +69,23 @@ public class IncidentService {
     @Transactional(readOnly = true)
     public Incident findEntity(Long id) {
         return incidentRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Ocorrencia nao encontrada."));
+                .orElseThrow(() -> new ResourceNotFoundException("Ocorrência não encontrada."));
     }
 
     private void apply(Incident incident, Dtos.IncidentRequest request) {
         if (request.deliveryId() == null && request.orderId() == null) {
-            throw new BusinessException("A ocorrencia precisa estar vinculada a uma entrega ou pedido.");
+            throw new BusinessException("A ocorrência precisa estar vinculada a uma entrega ou pedido.");
         }
 
         if (request.deliveryId() != null) {
             var delivery = deliveryRepository.findById(request.deliveryId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Entrega vinculada nao encontrada."));
+                    .orElseThrow(() -> new ResourceNotFoundException("Entrega vinculada não encontrada."));
             incident.setDelivery(delivery);
             incident.setOrder(delivery.getOrder());
         } else {
             incident.setDelivery(null);
             incident.setOrder(orderRepository.findById(request.orderId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Pedido vinculado nao encontrado.")));
+                    .orElseThrow(() -> new ResourceNotFoundException("Pedido vinculado não encontrado.")));
         }
 
         incident.setType(request.type());

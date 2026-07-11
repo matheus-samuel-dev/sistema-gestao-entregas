@@ -3,14 +3,18 @@ package com.logitrack.service;
 import com.logitrack.domain.Delivery;
 import com.logitrack.domain.Incident;
 import com.logitrack.domain.enums.DeliveryStatus;
+import com.logitrack.domain.enums.DriverStatus;
 import com.logitrack.domain.enums.IncidentStatus;
 import com.logitrack.dto.Dtos;
 import com.logitrack.repository.DeliveryRepository;
+import com.logitrack.repository.DriverRepository;
 import com.logitrack.repository.IncidentRepository;
 import com.logitrack.repository.OrderRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.text.NumberFormat;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -18,8 +22,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Service
 public class DashboardService {
@@ -36,15 +42,18 @@ public class DashboardService {
     private final OrderRepository orderRepository;
     private final DeliveryRepository deliveryRepository;
     private final IncidentRepository incidentRepository;
+    private final DriverRepository driverRepository;
 
     public DashboardService(
             OrderRepository orderRepository,
             DeliveryRepository deliveryRepository,
-            IncidentRepository incidentRepository
+            IncidentRepository incidentRepository,
+            DriverRepository driverRepository
     ) {
         this.orderRepository = orderRepository;
         this.deliveryRepository = deliveryRepository;
         this.incidentRepository = incidentRepository;
+        this.driverRepository = driverRepository;
     }
 
     @Transactional(readOnly = true)
@@ -54,23 +63,43 @@ public class DashboardService {
         var end = start.plusDays(1);
         var deliveries = deliveryRepository.findAll();
         var incidents = incidentRepository.findAll();
+        var orders = orderRepository.findAll();
+        var drivers = driverRepository.findAll();
         var activeStatuses = EnumSet.of(DeliveryStatus.IN_PROGRESS, DeliveryStatus.COLLECTING, DeliveryStatus.ON_THE_WAY, DeliveryStatus.DELAYED);
         var totalDeliveries = Math.max(deliveries.size(), 1);
         var delivered = deliveries.stream().filter(d -> d.getStatus() == DeliveryStatus.DELIVERED).count();
+        var delayed = deliveries.stream().filter(d -> d.getStatus() == DeliveryStatus.DELAYED).count();
+        var activeDrivers = drivers.stream()
+                .filter(driver -> driver.getStatus() == DriverStatus.ON_ROUTE || driver.getStatus() == DriverStatus.AVAILABLE)
+                .count();
         var successRate = (delivered * 100.0) / totalDeliveries;
+        var monthRevenue = orders.stream()
+                .filter(order -> order.getCreatedAt().getYear() == today.getYear())
+                .filter(order -> order.getCreatedAt().getMonth() == today.getMonth())
+                .map(order -> order.getValue() == null ? BigDecimal.ZERO : order.getValue())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        var averageMinutes = deliveries.stream()
+                .filter(delivery -> delivery.getDeliveredAt() != null)
+                .mapToLong(delivery -> Duration.between(delivery.getCreatedAt(), delivery.getDeliveredAt()).toMinutes())
+                .filter(minutes -> minutes > 0)
+                .average()
+                .orElse(0);
 
         var metrics = List.of(
-                new Dtos.MetricCard("ordersToday", "Pedidos hoje", String.valueOf(orderRepository.countByCreatedAtBetween(start, end)), "+15% vs ontem", "up"),
-                new Dtos.MetricCard("activeDeliveries", "Entregas em andamento", String.valueOf(deliveryRepository.countByStatusIn(activeStatuses)), "+10% vs ontem", "up"),
-                new Dtos.MetricCard("completedDeliveries", "Entregas concluidas", String.valueOf(delivered), "+20% vs ontem", "up"),
-                new Dtos.MetricCard("openIncidents", "Ocorrencias abertas", String.valueOf(incidentRepository.countByStatusIn(List.of(IncidentStatus.OPEN, IncidentStatus.IN_REVIEW))), "-2 vs ontem", "down"),
-                new Dtos.MetricCard("successRate", "Taxa de sucesso", String.format("%.1f%%", successRate), "+4% vs ontem", "up")
+                new Dtos.MetricCard("activeDeliveries", "Entregas em andamento", String.valueOf(deliveryRepository.countByStatusIn(activeStatuses)), "monitoradas agora", "up"),
+                new Dtos.MetricCard("delayedDeliveries", "Entregas atrasadas", String.valueOf(delayed), "requer ação", "down"),
+                new Dtos.MetricCard("completedDeliveries", "Entregas concluídas", String.valueOf(delivered), "finalizadas hoje", "up"),
+                new Dtos.MetricCard("successRate", "Taxa de sucesso", String.format(Locale.forLanguageTag("pt-BR"), "%.1f%%", successRate), "base total", "up"),
+                new Dtos.MetricCard("averageDeliveryTime", "Tempo médio", formatDuration(Math.round(averageMinutes)), "entregas concluídas", "up"),
+                new Dtos.MetricCard("monthRevenue", "Receita do mês", formatCurrency(monthRevenue), "pedidos faturados", "up"),
+                new Dtos.MetricCard("activeDrivers", "Motoristas ativos", String.valueOf(activeDrivers), "disponíveis ou em rota", "up"),
+                new Dtos.MetricCard("ordersToday", "Pedidos hoje", String.valueOf(orderRepository.countByCreatedAtBetween(start, end)), "entrada operacional", "up")
         );
 
         return new Dtos.DashboardResponse(
                 metrics,
                 deliveriesByStatus(deliveries),
-                dayPerformance(),
+                dayPerformance(deliveries, start),
                 deliveriesByPeriod(start),
                 incidentsByType(incidents),
                 realtimeDeliveries(deliveries, activeStatuses),
@@ -89,20 +118,22 @@ public class DashboardService {
                 .toList();
     }
 
-    private List<Dtos.PerformancePoint> dayPerformance() {
-        return List.of(
-                new Dtos.PerformancePoint("00:00", 5),
-                new Dtos.PerformancePoint("04:00", 28),
-                new Dtos.PerformancePoint("08:00", 41),
-                new Dtos.PerformancePoint("12:00", 59),
-                new Dtos.PerformancePoint("16:00", 63),
-                new Dtos.PerformancePoint("20:00", 45),
-                new Dtos.PerformancePoint("24:00", 20)
-        );
+    private List<Dtos.PerformancePoint> dayPerformance(List<Delivery> deliveries, LocalDateTime start) {
+        return IntStream.range(0, 6)
+                .mapToObj(index -> {
+                    var bucketStart = start.plusHours(index * 4L);
+                    var bucketEnd = bucketStart.plusHours(4);
+                    var count = deliveries.stream()
+                            .filter(delivery -> !delivery.getExpectedAt().isBefore(bucketStart))
+                            .filter(delivery -> delivery.getExpectedAt().isBefore(bucketEnd))
+                            .count();
+                    return new Dtos.PerformancePoint(bucketStart.format(DateTimeFormatter.ofPattern("HH'h'")), count);
+                })
+                .toList();
     }
 
     private List<Dtos.PerformancePoint> deliveriesByPeriod(LocalDateTime start) {
-        return java.util.stream.IntStream.rangeClosed(0, 6)
+        return IntStream.rangeClosed(0, 6)
                 .mapToObj(offset -> start.minusDays(6L - offset))
                 .map(day -> new Dtos.PerformancePoint(
                         day.format(DateTimeFormatter.ofPattern("dd/MM")),
@@ -202,11 +233,27 @@ public class DashboardService {
     private String timeAgo(LocalDateTime createdAt) {
         var duration = Duration.between(createdAt, LocalDateTime.now());
         if (duration.toMinutes() < 60) {
-            return "ha " + Math.max(1, duration.toMinutes()) + " min";
+            return "há " + Math.max(1, duration.toMinutes()) + " min";
         }
         if (duration.toHours() < 24) {
-            return "ha " + duration.toHours() + " h";
+            return "há " + duration.toHours() + " h";
         }
-        return "ha " + duration.toDays() + " d";
+        return "há " + duration.toDays() + " d";
+    }
+
+    private String formatCurrency(BigDecimal value) {
+        return NumberFormat.getCurrencyInstance(new Locale("pt", "BR")).format(value);
+    }
+
+    private String formatDuration(long minutes) {
+        if (minutes <= 0) {
+            return "0min";
+        }
+        var hours = minutes / 60;
+        var rest = minutes % 60;
+        if (hours == 0) {
+            return rest + "min";
+        }
+        return rest == 0 ? hours + "h" : hours + "h " + rest + "min";
     }
 }

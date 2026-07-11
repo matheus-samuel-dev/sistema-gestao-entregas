@@ -3,7 +3,7 @@ package com.logitrack.domain.enums;
 public enum RouteStatus {
     PLANNED("Planejada"),
     ACTIVE("Ativa"),
-    COMPLETED("Concluida"),
+    COMPLETED("Concluída"),
     CANCELED("Cancelada");
 
     private final String label;

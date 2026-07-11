@@ -2,7 +2,7 @@ package com.logitrack.domain.enums;
 
 public enum IncidentStatus {
     OPEN("Aberta"),
-    IN_REVIEW("Em analise"),
+    IN_REVIEW("Em análise"),
     RESOLVED("Resolvida"),
     CANCELED("Cancelada");
 

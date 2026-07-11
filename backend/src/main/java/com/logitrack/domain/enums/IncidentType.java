@@ -2,9 +2,9 @@ package com.logitrack.domain.enums;
 
 public enum IncidentType {
     DELIVERY_DELAY("Atraso na entrega"),
-    CUSTOMER_NOT_FOUND("Cliente nao localizado"),
-    WRONG_ADDRESS("Endereco incorreto"),
-    VEHICLE_PROBLEM("Veiculo com problema"),
+    CUSTOMER_NOT_FOUND("Cliente não localizado"),
+    WRONG_ADDRESS("Endereço incorreto"),
+    VEHICLE_PROBLEM("Veículo com problema"),
     DAMAGED_PRODUCT("Produto avariado"),
     PROBLEM_SOLVED("Problema resolvido");
 

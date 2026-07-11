@@ -1,5 +1,6 @@
 import {
   Box,
+  Button,
   Card,
   CardContent,
   Grid,
@@ -16,12 +17,16 @@ import {
   Typography
 } from '@mui/material';
 import AssignmentTurnedInOutlinedIcon from '@mui/icons-material/AssignmentTurnedInOutlined';
+import AttachMoneyOutlinedIcon from '@mui/icons-material/AttachMoneyOutlined';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import ErrorOutlineOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
+import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
 import LocalShippingOutlinedIcon from '@mui/icons-material/LocalShippingOutlined';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
+import TimerOutlinedIcon from '@mui/icons-material/TimerOutlined';
 import TimelineOutlinedIcon from '@mui/icons-material/TimelineOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import {
   Area,
   AreaChart,
@@ -38,7 +43,9 @@ import {
   XAxis,
   YAxis
 } from 'recharts';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
+import { NavLink } from 'react-router-dom';
 import { api } from '../api/client';
 import type { DashboardData, MetricCardData } from '../api/types';
 import { DeliveryMap } from '../components/DeliveryMap';
@@ -47,22 +54,56 @@ import { MetricCard } from '../components/MetricCard';
 import { StatusBadge } from '../components/StatusBadge';
 
 const iconByMetric: Record<string, { icon: JSX.Element; tone: string }> = {
-  ordersToday: { icon: <AssignmentTurnedInOutlinedIcon />, tone: '#10b981' },
   activeDeliveries: { icon: <LocalShippingOutlinedIcon />, tone: '#2563eb' },
+  delayedDeliveries: { icon: <WarningAmberOutlinedIcon />, tone: '#ef4444' },
   completedDeliveries: { icon: <CheckCircleOutlinedIcon />, tone: '#10b981' },
-  openIncidents: { icon: <ErrorOutlineOutlinedIcon />, tone: '#f59e0b' },
-  successRate: { icon: <TimelineOutlinedIcon />, tone: '#8b5cf6' }
+  successRate: { icon: <TimelineOutlinedIcon />, tone: '#14b8a6' },
+  averageDeliveryTime: { icon: <TimerOutlinedIcon />, tone: '#8b5cf6' },
+  monthRevenue: { icon: <AttachMoneyOutlinedIcon />, tone: '#009f6b' },
+  activeDrivers: { icon: <GroupsOutlinedIcon />, tone: '#0f766e' },
+  ordersToday: { icon: <AssignmentTurnedInOutlinedIcon />, tone: '#f59e0b' },
+  openIncidents: { icon: <ErrorOutlineOutlinedIcon />, tone: '#ef4444' }
+};
+
+const chartTooltipStyle = {
+  border: '1px solid #e6ecea',
+  borderRadius: 8,
+  boxShadow: '0 14px 34px rgba(15, 23, 42, 0.12)'
 };
 
 function MetricSkeleton() {
   return (
-    <Card>
+    <Card className="page-enter" sx={{ height: '100%' }}>
       <CardContent>
         <Stack spacing={1.5}>
-          <Skeleton width="60%" />
-          <Skeleton width="40%" height={42} />
-          <Skeleton width="50%" />
+          <Skeleton width="62%" />
+          <Skeleton width="46%" height={44} />
+          <Skeleton width="54%" />
         </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
+function Panel({
+  title,
+  action,
+  children,
+  minHeight
+}: {
+  title: string;
+  action?: ReactNode;
+  children: ReactNode;
+  minHeight?: number;
+}) {
+  return (
+    <Card className="soft-card" sx={{ height: '100%' }}>
+      <CardContent sx={{ minHeight }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+          <Typography variant="h6">{title}</Typography>
+          {action}
+        </Stack>
+        {children}
       </CardContent>
     </Card>
   );
@@ -70,6 +111,10 @@ function MetricSkeleton() {
 
 function metricVisual(metric: MetricCardData) {
   return iconByMetric[metric.key] ?? iconByMetric.ordersToday;
+}
+
+function ChartEmpty({ title = 'Sem dados para exibir' }: { title?: string }) {
+  return <EmptyState title={title} description="Os dados aparecerão automaticamente quando houver registros suficientes." />;
 }
 
 export function DashboardPage() {
@@ -91,58 +136,96 @@ export function DashboardPage() {
     load();
   }, []);
 
+  const deliveryTotal = useMemo(
+    () => data?.deliveriesByStatus.reduce((sum, slice) => sum + slice.value, 0) ?? 0,
+    [data]
+  );
+
   if (error) {
-    return <EmptyState title="Dashboard indisponível" description="Verifique se a API está rodando." onRetry={load} />;
+    return (
+      <EmptyState
+        title="Dashboard indisponível"
+        description="Verifique se a API está rodando e tente atualizar os dados."
+        actionLabel="Tentar novamente"
+        onAction={load}
+      />
+    );
   }
 
   return (
-    <Stack spacing={2.5}>
+    <Stack spacing={2.5} className="page-enter">
+      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} justifyContent="space-between" alignItems={{ md: 'center' }}>
+        <Box>
+          <Typography variant="h5">Centro operacional</Typography>
+          <Typography color="text.secondary">
+            Indicadores em tempo real para entregas, atrasos, frota, receita e ocorrências.
+          </Typography>
+        </Box>
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          <Button component={NavLink} to="/deliveries" variant="contained" startIcon={<LocalShippingOutlinedIcon />}>
+            Nova entrega
+          </Button>
+          <Button component={NavLink} to="/reports" variant="outlined" startIcon={<TimelineOutlinedIcon />}>
+            Relatórios
+          </Button>
+        </Stack>
+      </Stack>
+
       <Box
         sx={{
           display: 'grid',
           gridTemplateColumns: {
             xs: '1fr',
             sm: 'repeat(2, minmax(0, 1fr))',
-            md: 'repeat(3, minmax(0, 1fr))',
-            xl: 'repeat(5, minmax(0, 1fr))'
+            lg: 'repeat(4, minmax(0, 1fr))'
           },
           gap: 2
         }}
       >
         {loading
-          ? Array.from({ length: 5 }).map((_, index) => (
-              <MetricSkeleton key={index} />
-            ))
-          : data?.metrics.map((metric) => {
+          ? Array.from({ length: 8 }).map((_, index) => <MetricSkeleton key={index} />)
+          : data?.metrics.map((metric, index) => {
               const visual = metricVisual(metric);
               return (
-                <MetricCard key={metric.key} metric={metric} icon={visual.icon} tone={visual.tone} />
+                <MetricCard
+                  key={metric.key}
+                  metric={metric}
+                  icon={visual.icon}
+                  tone={visual.tone}
+                  delay={index * 45}
+                />
               );
             })}
       </Box>
 
       <Grid container spacing={2}>
         <Grid item xs={12} xl={8}>
-          <Card>
-            <CardContent sx={{ pb: 1.5 }}>
-              <Typography variant="h6" mb={2}>
-                Entregas em tempo real
-              </Typography>
-              {loading || !data ? <Skeleton variant="rounded" height={440} /> : <DeliveryMap deliveries={data.realtimeDeliveries} />}
-            </CardContent>
-          </Card>
+          <Panel
+            title="Entregas em tempo real"
+            action={
+              <Button component={NavLink} to="/deliveries" size="small">
+                Ver entregas
+              </Button>
+            }
+          >
+            {loading || !data ? (
+              <Skeleton variant="rounded" height={440} />
+            ) : data.realtimeDeliveries.length ? (
+              <DeliveryMap deliveries={data.realtimeDeliveries} />
+            ) : (
+              <EmptyState title="Nenhuma entrega ativa no mapa" description="Entregas em rota aparecerão aqui com posição e progresso." />
+            )}
+          </Panel>
         </Grid>
+
         <Grid item xs={12} md={6} xl={4}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Typography variant="h6" mb={2}>
-                Entregas por status
-              </Typography>
-              {loading || !data ? (
-                <Skeleton variant="rounded" height={260} />
-              ) : (
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
-                  <Box width={{ xs: '100%', sm: 220 }} height={230}>
+          <Panel title="Entregas por status">
+            {loading || !data ? (
+              <Skeleton variant="rounded" height={280} />
+            ) : data.deliveriesByStatus.length ? (
+              <Stack spacing={2}>
+                <Stack direction={{ xs: 'column', sm: 'row', xl: 'column' }} spacing={2} alignItems="center">
+                  <Box width="100%" maxWidth={240} height={220}>
                     <ResponsiveContainer>
                       <PieChart>
                         <Pie
@@ -157,7 +240,7 @@ export function DashboardPage() {
                             <Cell key={entry.label} fill={entry.color} />
                           ))}
                         </Pie>
-                        <ChartTooltip />
+                        <ChartTooltip contentStyle={chartTooltipStyle} />
                       </PieChart>
                     </ResponsiveContainer>
                   </Box>
@@ -168,32 +251,46 @@ export function DashboardPage() {
                         <Typography variant="body2" flex={1}>
                           {slice.label}
                         </Typography>
-                        <Typography variant="body2" fontWeight={800}>
+                        <Typography variant="body2" fontWeight={850}>
                           {slice.value}
                         </Typography>
                       </Stack>
                     ))}
+                    <DividerLine />
+                    <Typography variant="caption" color="text.secondary">
+                      Total monitorado: {deliveryTotal}
+                    </Typography>
                   </Stack>
                 </Stack>
-              )}
-            </CardContent>
-          </Card>
+              </Stack>
+            ) : (
+              <ChartEmpty />
+            )}
+          </Panel>
         </Grid>
 
         <Grid item xs={12} md={6} xl={4}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-                <Typography variant="h6">Próximas entregas</Typography>
-                <Typography variant="caption" color="primary" fontWeight={800}>
-                  Ver todas
-                </Typography>
-              </Stack>
-              <Stack spacing={1.6}>
-                {loading || !data
-                  ? Array.from({ length: 5 }).map((_, index) => <Skeleton key={index} height={52} />)
-                  : data.upcomingDeliveries.map((delivery) => (
-                      <Stack direction="row" spacing={1.5} alignItems="center" key={delivery.orderNumber}>
+          <Panel
+            title="Próximas entregas"
+            action={
+              <Button component={NavLink} to="/deliveries" size="small">
+                Ver todas
+              </Button>
+            }
+          >
+            <Stack spacing={1.4}>
+              {loading || !data
+                ? Array.from({ length: 5 }).map((_, index) => <Skeleton key={index} height={58} />)
+                : data.upcomingDeliveries.length
+                  ? data.upcomingDeliveries.map((delivery, index) => (
+                      <Stack
+                        className="stagger-item"
+                        sx={{ animationDelay: `${index * 35}ms` }}
+                        direction="row"
+                        spacing={1.5}
+                        alignItems="center"
+                        key={delivery.orderNumber}
+                      >
                         <Typography minWidth={48} variant="body2" color="primary" fontWeight={900}>
                           {delivery.time}
                         </Typography>
@@ -210,119 +307,111 @@ export function DashboardPage() {
                         </Box>
                         <StatusBadge status={delivery.status} label={delivery.statusLabel} />
                       </Stack>
-                    ))}
-              </Stack>
-            </CardContent>
-          </Card>
+                    ))
+                  : <EmptyState title="Sem próximas entregas" description="A fila de próximas entregas está vazia no momento." />}
+            </Stack>
+          </Panel>
         </Grid>
 
         <Grid item xs={12} md={6} xl={4}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Typography variant="h6" mb={2}>
-                Desempenho do dia
-              </Typography>
-              <Box height={250}>
-                {loading || !data ? (
-                  <Skeleton variant="rounded" height="100%" />
-                ) : (
-                  <ResponsiveContainer>
-                    <AreaChart data={data.dayPerformance}>
-                      <defs>
-                        <linearGradient id="deliveryGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.35} />
-                          <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid stroke="#eef2f1" vertical={false} />
-                      <XAxis dataKey="label" tickLine={false} axisLine={false} />
-                      <YAxis tickLine={false} axisLine={false} />
-                      <ChartTooltip />
-                      <Area type="monotone" dataKey="value" stroke="#10b981" fill="url(#deliveryGradient)" strokeWidth={3} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                )}
-              </Box>
-            </CardContent>
-          </Card>
+          <Panel title="Desempenho do dia">
+            <Box height={250}>
+              {loading || !data ? (
+                <Skeleton variant="rounded" height="100%" />
+              ) : (
+                <ResponsiveContainer>
+                  <AreaChart data={data.dayPerformance}>
+                    <defs>
+                      <linearGradient id="deliveryGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.35} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid stroke="#eef2f1" vertical={false} />
+                    <XAxis dataKey="label" tickLine={false} axisLine={false} />
+                    <YAxis tickLine={false} axisLine={false} allowDecimals={false} />
+                    <ChartTooltip contentStyle={chartTooltipStyle} />
+                    <Area type="monotone" dataKey="value" name="Entregas" stroke="#10b981" fill="url(#deliveryGradient)" strokeWidth={3} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
+            </Box>
+          </Panel>
         </Grid>
 
         <Grid item xs={12} md={6} xl={4}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Typography variant="h6" mb={2}>
-                Ocorrências por tipo
-              </Typography>
-              <Box height={250}>
-                {loading || !data ? (
-                  <Skeleton variant="rounded" height="100%" />
-                ) : (
-                  <ResponsiveContainer>
-                    <BarChart data={data.incidentsByType} layout="vertical" margin={{ left: 16 }}>
-                      <CartesianGrid stroke="#eef2f1" horizontal={false} />
-                      <XAxis type="number" tickLine={false} axisLine={false} />
-                      <YAxis type="category" dataKey="label" width={118} tickLine={false} axisLine={false} />
-                      <ChartTooltip />
-                      <Bar dataKey="value" radius={[0, 6, 6, 0]}>
-                        {data.incidentsByType.map((entry) => (
-                          <Cell key={entry.label} fill={entry.color} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </Box>
-            </CardContent>
-          </Card>
+          <Panel title="Ocorrências por tipo">
+            <Box height={250}>
+              {loading || !data ? (
+                <Skeleton variant="rounded" height="100%" />
+              ) : data.incidentsByType.length ? (
+                <ResponsiveContainer>
+                  <BarChart data={data.incidentsByType} layout="vertical" margin={{ left: 16, right: 8 }}>
+                    <CartesianGrid stroke="#eef2f1" horizontal={false} />
+                    <XAxis type="number" tickLine={false} axisLine={false} allowDecimals={false} />
+                    <YAxis type="category" dataKey="label" width={120} tickLine={false} axisLine={false} />
+                    <ChartTooltip contentStyle={chartTooltipStyle} />
+                    <Bar dataKey="value" name="Ocorrências" radius={[0, 6, 6, 0]}>
+                      {data.incidentsByType.map((entry) => (
+                        <Cell key={entry.label} fill={entry.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <ChartEmpty title="Nenhuma ocorrência registrada" />
+              )}
+            </Box>
+          </Panel>
         </Grid>
 
         <Grid item xs={12} xl={8}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" mb={2}>
-                Entregas em andamento
-              </Typography>
-              {loading || !data ? (
-                <Skeleton variant="rounded" height={320} />
-              ) : (
-                <Box sx={{ overflowX: 'auto' }}>
-                  <Table size="small" aria-label="Entregas em andamento">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Pedido</TableCell>
-                        <TableCell>Cliente</TableCell>
-                        <TableCell>Motorista</TableCell>
-                        <TableCell>Rota</TableCell>
-                        <TableCell>Status</TableCell>
-                        <TableCell>Progresso</TableCell>
-                        <TableCell>Previsão</TableCell>
-                        <TableCell align="right">Ações</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {data.activeDeliveries.map((delivery) => (
-                        <TableRow hover key={delivery.id}>
-                          <TableCell>{delivery.orderNumber}</TableCell>
-                          <TableCell>{delivery.customerName}</TableCell>
-                          <TableCell>{delivery.driverName}</TableCell>
-                          <TableCell>{delivery.routeName}</TableCell>
-                          <TableCell>
-                            <StatusBadge status={delivery.status} label={delivery.statusLabel} />
-                          </TableCell>
-                          <TableCell sx={{ minWidth: 140 }}>
-                            <Stack direction="row" spacing={1} alignItems="center">
-                              <Typography variant="caption" fontWeight={800}>
-                                {delivery.progress}%
-                              </Typography>
-                              <LinearProgress
-                                variant="determinate"
-                                value={delivery.progress}
-                                sx={{ flex: 1, height: 7, borderRadius: 2 }}
-                              />
-                            </Stack>
-                          </TableCell>
-                          <TableCell>{delivery.expectedTime}</TableCell>
-                          <TableCell align="right">
+          <Panel
+            title="Entregas em andamento"
+            action={
+              <Button component={NavLink} to="/deliveries" size="small">
+                Operar fila
+              </Button>
+            }
+          >
+            {loading || !data ? (
+              <Skeleton variant="rounded" height={330} />
+            ) : data.activeDeliveries.length ? (
+              <Box sx={{ overflowX: 'auto' }}>
+                <Table size="small" aria-label="Entregas em andamento">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Pedido</TableCell>
+                      <TableCell>Cliente</TableCell>
+                      <TableCell>Motorista</TableCell>
+                      <TableCell>Rota</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell>Progresso</TableCell>
+                      <TableCell>Previsão</TableCell>
+                      <TableCell align="right">Ações</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {data.activeDeliveries.map((delivery) => (
+                      <TableRow hover key={delivery.id}>
+                        <TableCell sx={{ fontWeight: 850 }}>{delivery.orderNumber}</TableCell>
+                        <TableCell>{delivery.customerName}</TableCell>
+                        <TableCell>{delivery.driverName}</TableCell>
+                        <TableCell>{delivery.routeName}</TableCell>
+                        <TableCell>
+                          <StatusBadge status={delivery.status} label={delivery.statusLabel} />
+                        </TableCell>
+                        <TableCell sx={{ minWidth: 150 }}>
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <Typography variant="caption" fontWeight={850} minWidth={34}>
+                              {delivery.progress}%
+                            </Typography>
+                            <LinearProgress variant="determinate" value={delivery.progress} sx={{ flex: 1, height: 7 }} />
+                          </Stack>
+                        </TableCell>
+                        <TableCell>{delivery.expectedTime}</TableCell>
+                        <TableCell align="right">
+                          <Stack direction="row" justifyContent="flex-end" spacing={0.5}>
                             <Tooltip title="Visualizar">
                               <IconButton aria-label={`Visualizar ${delivery.orderNumber}`} size="small">
                                 <VisibilityOutlinedIcon fontSize="small" />
@@ -333,31 +422,41 @@ export function DashboardPage() {
                                 <MoreHorizIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </Box>
-              )}
-            </CardContent>
-          </Card>
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Box>
+            ) : (
+              <EmptyState title="Nenhuma entrega em andamento" description="Quando uma entrega for iniciada, ela aparecerá nesta fila operacional." />
+            )}
+          </Panel>
         </Grid>
 
         <Grid item xs={12} xl={4}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-                <Typography variant="h6">Ocorrências recentes</Typography>
-                <Typography variant="caption" color="primary" fontWeight={800}>
-                  Ver todas
-                </Typography>
-              </Stack>
-              <Stack spacing={1.4}>
-                {loading || !data
-                  ? Array.from({ length: 5 }).map((_, index) => <Skeleton key={index} height={56} />)
-                  : data.recentIncidents.map((incident) => (
-                      <Stack direction="row" spacing={1.5} alignItems="center" key={incident.id}>
+          <Panel
+            title="Ocorrências recentes"
+            action={
+              <Button component={NavLink} to="/incidents" size="small">
+                Ver todas
+              </Button>
+            }
+          >
+            <Stack spacing={1.4}>
+              {loading || !data
+                ? Array.from({ length: 5 }).map((_, index) => <Skeleton key={index} height={58} />)
+                : data.recentIncidents.length
+                  ? data.recentIncidents.map((incident, index) => (
+                      <Stack
+                        className="stagger-item"
+                        sx={{ animationDelay: `${index * 35}ms` }}
+                        direction="row"
+                        spacing={1.5}
+                        alignItems="center"
+                        key={incident.id}
+                      >
                         <Box
                           sx={{
                             width: 38,
@@ -366,7 +465,8 @@ export function DashboardPage() {
                             display: 'grid',
                             placeItems: 'center',
                             bgcolor: incident.priority === 'CRITICAL' || incident.priority === 'HIGH' ? '#fee2e2' : '#e0f2fe',
-                            color: incident.priority === 'CRITICAL' || incident.priority === 'HIGH' ? '#ef4444' : '#2563eb'
+                            color: incident.priority === 'CRITICAL' || incident.priority === 'HIGH' ? '#ef4444' : '#2563eb',
+                            flex: '0 0 auto'
                           }}
                         >
                           <ErrorOutlineOutlinedIcon fontSize="small" />
@@ -379,41 +479,40 @@ export function DashboardPage() {
                             Pedido {incident.orderNumber}
                           </Typography>
                         </Box>
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" color="text.secondary" flexShrink={0}>
                           {incident.timeAgo}
                         </Typography>
                       </Stack>
-                    ))}
-              </Stack>
-            </CardContent>
-          </Card>
+                    ))
+                  : <EmptyState title="Sem ocorrências recentes" description="A operação não possui ocorrências abertas no momento." />}
+            </Stack>
+          </Panel>
         </Grid>
 
         <Grid item xs={12}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" mb={2}>
-                Entregas por período
-              </Typography>
-              <Box height={260}>
-                {loading || !data ? (
-                  <Skeleton variant="rounded" height="100%" />
-                ) : (
-                  <ResponsiveContainer>
-                    <LineChart data={data.deliveriesByPeriod}>
-                      <CartesianGrid stroke="#eef2f1" vertical={false} />
-                      <XAxis dataKey="label" tickLine={false} axisLine={false} />
-                      <YAxis tickLine={false} axisLine={false} />
-                      <ChartTooltip />
-                      <Line type="monotone" dataKey="value" stroke="#2563eb" strokeWidth={3} dot={{ r: 4 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                )}
-              </Box>
-            </CardContent>
-          </Card>
+          <Panel title="Entregas por período">
+            <Box height={280}>
+              {loading || !data ? (
+                <Skeleton variant="rounded" height="100%" />
+              ) : (
+                <ResponsiveContainer>
+                  <LineChart data={data.deliveriesByPeriod}>
+                    <CartesianGrid stroke="#eef2f1" vertical={false} />
+                    <XAxis dataKey="label" tickLine={false} axisLine={false} />
+                    <YAxis tickLine={false} axisLine={false} allowDecimals={false} />
+                    <ChartTooltip contentStyle={chartTooltipStyle} />
+                    <Line type="monotone" dataKey="value" name="Entregas" stroke="#2563eb" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </Box>
+          </Panel>
         </Grid>
       </Grid>
     </Stack>
   );
+}
+
+function DividerLine() {
+  return <Box sx={{ height: 1, bgcolor: 'divider', my: 0.3 }} />;
 }

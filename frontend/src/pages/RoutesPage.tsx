@@ -4,6 +4,7 @@ import type { MapDelivery, RoutePlan } from '../api/types';
 import { api } from '../api/client';
 import { CrudPage } from '../components/CrudPage';
 import { DeliveryMap } from '../components/DeliveryMap';
+import { EmptyState } from '../components/DataState';
 import { routeStatusOptions } from '../components/status';
 import { StatusBadge } from '../components/StatusBadge';
 
@@ -40,12 +41,18 @@ function RouteMapPanel() {
   );
 
   return (
-    <Card>
+    <Card className="soft-card">
       <CardContent>
         <Typography variant="h6" mb={2}>
           Rotas no mapa
         </Typography>
-        {loading ? <Skeleton variant="rounded" height={360} /> : <DeliveryMap deliveries={mapRoutes} height={360} />}
+        {loading ? (
+          <Skeleton variant="rounded" height={360} />
+        ) : mapRoutes.length ? (
+          <DeliveryMap deliveries={mapRoutes} height={360} />
+        ) : (
+          <EmptyState title="Nenhuma rota no mapa" description="Crie uma rota para visualizar o trajeto operacional." />
+        )}
       </CardContent>
     </Card>
   );
@@ -53,7 +60,7 @@ function RouteMapPanel() {
 
 export function RoutesPage() {
   return (
-    <Stack spacing={2.5}>
+    <Stack spacing={2.5} className="page-enter">
       <RouteMapPanel />
       <Grid container>
         <Grid item xs={12}>
@@ -89,8 +96,8 @@ export function RoutesPage() {
               { key: 'status', label: 'Status', type: 'select', options: routeStatusOptions, required: true },
               { key: 'origin', label: 'Origem', required: true },
               { key: 'destination', label: 'Destino', required: true },
-              { key: 'estimatedDistanceKm', label: 'Distância estimada (km)', type: 'number', required: true },
-              { key: 'estimatedTimeMinutes', label: 'Tempo estimado (min)', type: 'number', required: true },
+              { key: 'estimatedDistanceKm', label: 'Distância estimada (km)', type: 'number', required: true, min: 0.1 },
+              { key: 'estimatedTimeMinutes', label: 'Tempo estimado (min)', type: 'number', required: true, min: 1 },
               { key: 'originLat', label: 'Latitude origem', type: 'number', required: true },
               { key: 'originLng', label: 'Longitude origem', type: 'number', required: true },
               { key: 'destinationLat', label: 'Latitude destino', type: 'number', required: true },

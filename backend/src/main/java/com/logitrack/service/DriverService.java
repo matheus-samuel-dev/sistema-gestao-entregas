@@ -40,7 +40,7 @@ public class DriverService {
     public Dtos.DriverResponse create(Dtos.DriverRequest request) {
         driverRepository.findByLicenseNumber(request.licenseNumber())
                 .ifPresent(existing -> {
-                    throw new BusinessException("Ja existe motorista com esta CNH.");
+                    throw new BusinessException("Já existe motorista com esta CNH.");
                 });
         var driver = new Driver();
         apply(driver, request);
@@ -53,7 +53,7 @@ public class DriverService {
         driverRepository.findByLicenseNumber(request.licenseNumber())
                 .filter(existing -> !existing.getId().equals(id))
                 .ifPresent(existing -> {
-                    throw new BusinessException("Ja existe motorista com esta CNH.");
+                    throw new BusinessException("Já existe motorista com esta CNH.");
                 });
         apply(driver, request);
         return DtoMapper.toDriver(driver);
@@ -63,7 +63,7 @@ public class DriverService {
     public Dtos.DriverResponse inactivate(Long id) {
         var driver = findEntity(id);
         if (driver.getStatus() == DriverStatus.ON_ROUTE) {
-            throw new BusinessException("Motorista em rota nao pode ser inativado.");
+            throw new BusinessException("Motorista em rota não pode ser inativado.");
         }
         driver.setStatus(DriverStatus.INACTIVE);
         driver.setCurrentVehicle(null);
@@ -73,7 +73,7 @@ public class DriverService {
     @Transactional(readOnly = true)
     public Driver findEntity(Long id) {
         return driverRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Motorista nao encontrado."));
+                .orElseThrow(() -> new ResourceNotFoundException("Motorista não encontrado."));
     }
 
     private void apply(Driver driver, Dtos.DriverRequest request) {

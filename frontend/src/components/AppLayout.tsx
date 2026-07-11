@@ -24,6 +24,7 @@ import {
 import type { Theme } from '@mui/material/styles';
 import AssessmentOutlinedIcon from '@mui/icons-material/AssessmentOutlined';
 import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined';
+import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import DirectionsCarOutlinedIcon from '@mui/icons-material/DirectionsCarOutlined';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -37,7 +38,8 @@ import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined
 import SearchIcon from '@mui/icons-material/Search';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import SmsOutlinedIcon from '@mui/icons-material/SmsOutlined';
-import { useMemo, useState } from 'react';
+import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -55,15 +57,41 @@ const navigation = [
   { label: 'Configurações', path: '/settings', icon: <SettingsOutlinedIcon /> }
 ];
 
+const notifications = [
+  {
+    title: 'Entrega atrasada',
+    description: 'Pedido #10452 passou do SLA planejado.',
+    time: 'há 15 min',
+    color: '#ef4444',
+    icon: <WarningAmberOutlinedIcon fontSize="small" />,
+    path: '/deliveries'
+  },
+  {
+    title: 'Ocorrência crítica',
+    description: 'Produto avariado aguardando tratativa.',
+    time: 'há 35 min',
+    color: '#f59e0b',
+    icon: <ReportProblemOutlinedIcon fontSize="small" />,
+    path: '/incidents'
+  },
+  {
+    title: 'Entrega concluída',
+    description: 'Pedido #10453 finalizado com sucesso.',
+    time: 'há 1 h',
+    color: '#10b981',
+    icon: <CheckCircleOutlinedIcon fontSize="small" />,
+    path: '/reports'
+  }
+];
+
 function pageTitle(pathname: string) {
   const item = navigation.find((nav) => nav.path === pathname);
   return item?.label ?? 'Dashboard';
 }
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const { logout } = useAuth();
 
   return (
     <Stack height="100%" sx={{ bgcolor: '#003d2f', color: '#effdf5' }}>
@@ -103,21 +131,24 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
             to={item.path}
             onClick={onNavigate}
             sx={{
-              my: 0.4,
+              my: 0.35,
+              minHeight: 44,
               borderRadius: 2,
               color: 'rgba(255,255,255,0.82)',
+              transition: 'transform 160ms ease, background-color 160ms ease, color 160ms ease',
               '&.active': {
                 bgcolor: '#008756',
                 color: '#fff',
                 boxShadow: '0 12px 30px rgba(0, 135, 86, 0.28)'
               },
               '&:hover': {
-                bgcolor: 'rgba(255,255,255,0.08)'
+                bgcolor: 'rgba(255,255,255,0.08)',
+                transform: 'translateX(2px)'
               }
             }}
           >
             <ListItemIcon sx={{ color: 'inherit', minWidth: 38 }}>{item.icon}</ListItemIcon>
-            <ListItemText primary={item.label} primaryTypographyProps={{ fontWeight: 750 }} />
+            <ListItemText primary={item.label} primaryTypographyProps={{ fontWeight: 800 }} />
           </ListItemButton>
         ))}
       </List>
@@ -139,7 +170,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
             {user?.name?.slice(0, 1) ?? 'A'}
           </Avatar>
           <Box textAlign="left" minWidth={0}>
-            <Typography variant="body2" fontWeight={800} noWrap>
+            <Typography variant="body2" fontWeight={850} noWrap>
               {user?.name ?? 'Administrador'}
             </Typography>
             <Typography variant="caption" color="rgba(255,255,255,0.65)" noWrap>
@@ -157,15 +188,29 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
 export function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [notificationAnchor, setNotificationAnchor] = useState<null | HTMLElement>(null);
   const location = useLocation();
   const isDesktop = useMediaQuery((theme: Theme) => theme.breakpoints.up('lg'));
   const title = useMemo(() => pageTitle(location.pathname), [location.pathname]);
+  const searchRef = useRef<HTMLInputElement | null>(null);
+  const { user } = useAuth();
   const today = new Intl.DateTimeFormat('pt-BR', {
     weekday: 'short',
     day: '2-digit',
     month: 'short'
   }).format(new Date());
-  const { user } = useAuth();
+
+  useEffect(() => {
+    function handleShortcut(event: KeyboardEvent) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        searchRef.current?.focus();
+      }
+    }
+
+    window.addEventListener('keydown', handleShortcut);
+    return () => window.removeEventListener('keydown', handleShortcut);
+  }, []);
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
@@ -176,10 +221,11 @@ export function AppLayout() {
         sx={{
           width: { lg: `calc(100% - ${drawerWidth}px)` },
           ml: { lg: `${drawerWidth}px` },
-          bgcolor: '#fff',
+          bgcolor: 'rgba(255,255,255,0.94)',
           color: 'text.primary',
           borderBottom: '1px solid',
-          borderColor: 'divider'
+          borderColor: 'divider',
+          backdropFilter: 'blur(14px)'
         }}
       >
         <Toolbar sx={{ gap: 2, minHeight: 72 }}>
@@ -198,16 +244,16 @@ export function AppLayout() {
             <Typography variant="h6" lineHeight={1.1}>
               {title}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" noWrap>
               Visão geral das operações
             </Typography>
           </Box>
           <TextField
-            size="small"
+            inputRef={searchRef}
             aria-label="Buscar entregas, pedidos ou motoristas"
             placeholder="Buscar entregas, pedidos, motoristas..."
             sx={{
-              maxWidth: 440,
+              maxWidth: 460,
               ml: 'auto',
               display: { xs: 'none', md: 'block' },
               '& .MuiOutlinedInput-root': { bgcolor: '#fbfefd' }
@@ -220,7 +266,11 @@ export function AppLayout() {
               ),
               endAdornment: (
                 <InputAdornment position="end">
-                  <Typography variant="caption" color="text.secondary" sx={{ border: '1px solid #dbe5e1', px: 0.8, borderRadius: 1 }}>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ border: '1px solid #dbe5e1', px: 0.8, borderRadius: 1, lineHeight: 1.7 }}
+                  >
                     Ctrl K
                   </Typography>
                 </InputAdornment>
@@ -229,8 +279,8 @@ export function AppLayout() {
           />
           <Stack direction="row" spacing={0.5} alignItems="center" className="no-print">
             <Tooltip title="Notificações">
-              <IconButton aria-label="Abrir notificações">
-                <Badge badgeContent={8} color="error">
+              <IconButton aria-label="Abrir notificações" onClick={(event) => setNotificationAnchor(event.currentTarget)}>
+                <Badge badgeContent={notifications.length} color="error">
                   <NotificationsNoneOutlinedIcon />
                 </Badge>
               </IconButton>
@@ -254,7 +304,7 @@ export function AppLayout() {
                 {user?.name?.slice(0, 1) ?? 'A'}
               </Avatar>
               <Box sx={{ display: { xs: 'none', xl: 'block' } }}>
-                <Typography variant="body2" fontWeight={800}>
+                <Typography variant="body2" fontWeight={850}>
                   {user?.name ?? 'Administrador'}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
@@ -265,6 +315,67 @@ export function AppLayout() {
           </Stack>
         </Toolbar>
       </AppBar>
+
+      <Menu
+        anchorEl={notificationAnchor}
+        open={Boolean(notificationAnchor)}
+        onClose={() => setNotificationAnchor(null)}
+        PaperProps={{ sx: { width: 380, maxWidth: 'calc(100vw - 32px)', mt: 1 } }}
+      >
+        <Box px={2} py={1.5}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Typography variant="subtitle1">Notificações</Typography>
+            <Typography variant="caption" color="text.secondary">
+              {notifications.length} novas
+            </Typography>
+          </Stack>
+        </Box>
+        <Divider />
+        {notifications.map((notification) => (
+          <MenuItem
+            key={notification.title}
+            component={NavLink}
+            to={notification.path}
+            onClick={() => setNotificationAnchor(null)}
+            sx={{ alignItems: 'flex-start', gap: 1.2, py: 1.4, whiteSpace: 'normal' }}
+          >
+            <Box
+              sx={{
+                width: 34,
+                height: 34,
+                borderRadius: 2,
+                display: 'grid',
+                placeItems: 'center',
+                bgcolor: `${notification.color}18`,
+                color: notification.color,
+                flex: '0 0 auto'
+              }}
+            >
+              {notification.icon}
+            </Box>
+            <Box minWidth={0} flex={1}>
+              <Stack direction="row" justifyContent="space-between" gap={1}>
+                <Typography variant="body2" fontWeight={850}>
+                  {notification.title}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" flexShrink={0}>
+                  {notification.time}
+                </Typography>
+              </Stack>
+              <Typography variant="caption" color="text.secondary">
+                {notification.description}
+              </Typography>
+            </Box>
+          </MenuItem>
+        ))}
+        <Divider />
+        <Box p={1}>
+          <Button fullWidth size="small" component={NavLink} to="/incidents" onClick={() => setNotificationAnchor(null)}>
+            Ver central operacional
+          </Button>
+        </Box>
+      </Menu>
+
       <Box component="nav" className="no-print" sx={{ width: { lg: drawerWidth }, flexShrink: { lg: 0 } }}>
         {isDesktop ? (
           <Drawer

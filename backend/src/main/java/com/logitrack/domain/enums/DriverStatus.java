@@ -1,9 +1,9 @@
 package com.logitrack.domain.enums;
 
 public enum DriverStatus {
-    AVAILABLE("Disponivel"),
+    AVAILABLE("Disponível"),
     ON_ROUTE("Em rota"),
-    UNAVAILABLE("Indisponivel"),
+    UNAVAILABLE("Indisponível"),
     INACTIVE("Inativo");
 
     private final String label;

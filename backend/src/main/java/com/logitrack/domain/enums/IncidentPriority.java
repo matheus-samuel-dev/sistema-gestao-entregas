@@ -2,9 +2,9 @@ package com.logitrack.domain.enums;
 
 public enum IncidentPriority {
     LOW("Baixa"),
-    MEDIUM("Media"),
+    MEDIUM("Média"),
     HIGH("Alta"),
-    CRITICAL("Critica");
+    CRITICAL("Crítica");
 
     private final String label;
 

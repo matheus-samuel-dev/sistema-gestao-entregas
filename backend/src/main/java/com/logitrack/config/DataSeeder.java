@@ -53,7 +53,7 @@ public class DataSeeder {
         return args -> {
             if (!userRepository.existsByEmail("admin@logitrack.com")) {
                 var admin = new UserAccount();
-                admin.setName("Joao Silva");
+                admin.setName("João Silva");
                 admin.setEmail("admin@logitrack.com");
                 admin.setPasswordHash(passwordEncoder.encode("Admin@123"));
                 admin.setRole(UserRole.ADMIN);
@@ -84,21 +84,21 @@ public class DataSeeder {
             ));
 
             var orders = orderRepository.saveAll(List.of(
-                    order("#10451", "Mercado Nova Safra", "(11) 3001-1001", "Rua Clodomiro Amazonas, 98", "Sao Paulo", "SP", "1450.90", OrderStatus.DELIVERED, today.atTime(8, 20), today.atTime(11, 40)),
-                    order("#10452", "Clube Bela Vista", "(11) 3001-1002", "Rua Treze de Maio, 540", "Sao Paulo", "SP", "890.20", OrderStatus.DELAYED, today.atTime(8, 35), today.atTime(13, 10)),
-                    order("#10453", "Condominio Atlas", "(11) 3001-1003", "Alameda Santos, 1100", "Sao Paulo", "SP", "2320.00", OrderStatus.DELIVERED, today.atTime(8, 45), today.atTime(12, 20)),
-                    order("#10454", "Farmacia Horizonte", "(11) 3001-1004", "Rua Vergueiro, 2020", "Sao Paulo", "SP", "560.75", OrderStatus.PICKING, today.atTime(9, 0), today.atTime(15, 20)),
-                    order("#10455", "Padaria Central", "(11) 3001-1005", "Rua Augusta, 450", "Sao Paulo", "SP", "410.00", OrderStatus.PENDING, today.atTime(9, 10), today.atTime(16, 15)),
-                    order("#10456", "TechNova Solutions", "(11) 3001-1006", "Av. Paulista, 1000", "Sao Paulo", "SP", "3180.50", OrderStatus.ON_THE_WAY, today.atTime(9, 25), today.atTime(14, 30)),
-                    order("#10457", "Grupo Aurora", "(11) 3001-1007", "Rua Augusta, 500", "Sao Paulo", "SP", "1275.30", OrderStatus.COLLECTING, today.atTime(9, 30), today.atTime(15, 0)),
-                    order("#10458", "Clinica Vida+", "(11) 3001-1008", "Av. Brigadeiro Luis Antonio, 1500", "Sao Paulo", "SP", "760.80", OrderStatus.ON_THE_WAY, today.atTime(9, 40), today.atTime(15, 30)),
-                    order("#10459", "Studio Prime", "(11) 3001-1009", "Rua Oscar Freire, 200", "Sao Paulo", "SP", "985.00", OrderStatus.ON_THE_WAY, today.atTime(9, 45), today.atTime(16, 0)),
-                    order("#10460", "Oliveira Contabilidade", "(11) 3001-1010", "Rua XV de Novembro, 300", "Sao Paulo", "SP", "640.10", OrderStatus.COLLECTING, today.atTime(9, 55), today.atTime(16, 30)),
-                    order("#10461", "TechNova Solutions", "(11) 3001-1011", "Av. Paulista, 1200", "Sao Paulo", "SP", "1500.00", OrderStatus.ON_THE_WAY, today.atTime(10, 10), today.atTime(14, 30)),
-                    order("#10462", "Grupo Aurora", "(11) 3001-1012", "Rua Augusta, 560", "Sao Paulo", "SP", "2120.45", OrderStatus.COLLECTING, today.atTime(10, 15), today.atTime(15, 0)),
-                    order("#10463", "Clinica Vida+", "(11) 3001-1013", "Av. Brigadeiro, 1500", "Sao Paulo", "SP", "880.00", OrderStatus.ON_THE_WAY, today.atTime(10, 20), today.atTime(15, 30)),
-                    order("#10464", "Studio Prime", "(11) 3001-1014", "Rua Oscar Freire, 220", "Sao Paulo", "SP", "1180.90", OrderStatus.ON_THE_WAY, today.atTime(10, 25), today.atTime(16, 0)),
-                    order("#10465", "Oliveira Contabilidade", "(11) 3001-1015", "Rua XV de Novembro, 330", "Sao Paulo", "SP", "720.35", OrderStatus.COLLECTING, today.atTime(10, 30), today.atTime(16, 30))
+                    order("#10451", "Mercado Nova Safra", "(11) 3001-1001", "Rua Clodomiro Amazonas, 98", "São Paulo", "SP", "1450.90", OrderStatus.DELIVERED, today.atTime(8, 20), today.atTime(11, 40)),
+                    order("#10452", "Clube Bela Vista", "(11) 3001-1002", "Rua Treze de Maio, 540", "São Paulo", "SP", "890.20", OrderStatus.DELAYED, today.atTime(8, 35), today.atTime(13, 10)),
+                    order("#10453", "Condomínio Atlas", "(11) 3001-1003", "Alameda Santos, 1100", "São Paulo", "SP", "2320.00", OrderStatus.DELIVERED, today.atTime(8, 45), today.atTime(12, 20)),
+                    order("#10454", "Farmácia Horizonte", "(11) 3001-1004", "Rua Vergueiro, 2020", "São Paulo", "SP", "560.75", OrderStatus.PICKING, today.atTime(9, 0), today.atTime(15, 20)),
+                    order("#10455", "Padaria Central", "(11) 3001-1005", "Rua Augusta, 450", "São Paulo", "SP", "410.00", OrderStatus.PENDING, today.atTime(9, 10), today.atTime(16, 15)),
+                    order("#10456", "TechNova Solutions", "(11) 3001-1006", "Av. Paulista, 1000", "São Paulo", "SP", "3180.50", OrderStatus.ON_THE_WAY, today.atTime(9, 25), today.atTime(14, 30)),
+                    order("#10457", "Grupo Aurora", "(11) 3001-1007", "Rua Augusta, 500", "São Paulo", "SP", "1275.30", OrderStatus.COLLECTING, today.atTime(9, 30), today.atTime(15, 0)),
+                    order("#10458", "Clínica Vida+", "(11) 3001-1008", "Av. Brigadeiro Luís Antônio, 1500", "São Paulo", "SP", "760.80", OrderStatus.ON_THE_WAY, today.atTime(9, 40), today.atTime(15, 30)),
+                    order("#10459", "Studio Prime", "(11) 3001-1009", "Rua Oscar Freire, 200", "São Paulo", "SP", "985.00", OrderStatus.ON_THE_WAY, today.atTime(9, 45), today.atTime(16, 0)),
+                    order("#10460", "Oliveira Contabilidade", "(11) 3001-1010", "Rua XV de Novembro, 300", "São Paulo", "SP", "640.10", OrderStatus.COLLECTING, today.atTime(9, 55), today.atTime(16, 30)),
+                    order("#10461", "TechNova Solutions", "(11) 3001-1011", "Av. Paulista, 1200", "São Paulo", "SP", "1500.00", OrderStatus.ON_THE_WAY, today.atTime(10, 10), today.atTime(14, 30)),
+                    order("#10462", "Grupo Aurora", "(11) 3001-1012", "Rua Augusta, 560", "São Paulo", "SP", "2120.45", OrderStatus.COLLECTING, today.atTime(10, 15), today.atTime(15, 0)),
+                    order("#10463", "Clínica Vida+", "(11) 3001-1013", "Av. Brigadeiro, 1500", "São Paulo", "SP", "880.00", OrderStatus.ON_THE_WAY, today.atTime(10, 20), today.atTime(15, 30)),
+                    order("#10464", "Studio Prime", "(11) 3001-1014", "Rua Oscar Freire, 220", "São Paulo", "SP", "1180.90", OrderStatus.ON_THE_WAY, today.atTime(10, 25), today.atTime(16, 0)),
+                    order("#10465", "Oliveira Contabilidade", "(11) 3001-1015", "Rua XV de Novembro, 330", "São Paulo", "SP", "720.35", OrderStatus.COLLECTING, today.atTime(10, 30), today.atTime(16, 30))
             ));
 
             var routes = routeRepository.saveAll(List.of(
@@ -124,7 +124,7 @@ public class DataSeeder {
 
             incidentRepository.saveAll(List.of(
                     incident(deliveries.get(1), IncidentType.DELIVERY_DELAY, IncidentPriority.HIGH, IncidentStatus.OPEN, "Operacoes", "Entrega impactada por congestionamento na regiao central.", null, now.minusMinutes(15)),
-                    incident(deliveries.get(4), IncidentType.CUSTOMER_NOT_FOUND, IncidentPriority.MEDIUM, IncidentStatus.OPEN, "Central de Atendimento", "Motorista nao localizou o responsavel no endereco.", null, now.minusHours(1)),
+                    incident(deliveries.get(4), IncidentType.CUSTOMER_NOT_FOUND, IncidentPriority.MEDIUM, IncidentStatus.OPEN, "Central de Atendimento", "Motorista não localizou o responsável no endereço.", null, now.minusHours(1)),
                     incident(deliveries.get(5), IncidentType.WRONG_ADDRESS, IncidentPriority.MEDIUM, IncidentStatus.IN_REVIEW, "Suporte Logistico", "Numero informado diverge da fachada do cliente.", null, now.minusHours(2)),
                     incident(deliveries.get(0), IncidentType.PROBLEM_SOLVED, IncidentPriority.LOW, IncidentStatus.RESOLVED, "Operacoes", "Contato confirmado e entrega finalizada.", "Cliente recebeu a mercadoria.", now.minusHours(3)),
                     incident(deliveries.get(6), IncidentType.VEHICLE_PROBLEM, IncidentPriority.HIGH, IncidentStatus.IN_REVIEW, "Frota", "Alerta preventivo de temperatura do motor.", null, now.minusHours(4)),

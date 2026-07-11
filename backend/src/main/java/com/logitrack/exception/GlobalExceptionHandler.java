@@ -28,7 +28,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<Map<String, Object>> handleBadCredentials() {
-        return body(HttpStatus.UNAUTHORIZED, "E-mail ou senha invalidos.");
+        return body(HttpStatus.UNAUTHORIZED, "E-mail ou senha inválidos.");
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -38,7 +38,7 @@ public class GlobalExceptionHandler {
                 .stream()
                 .collect(Collectors.toMap(
                         FieldError::getField,
-                        error -> error.getDefaultMessage() == null ? "Valor invalido" : error.getDefaultMessage(),
+                        error -> error.getDefaultMessage() == null ? "Valor inválido" : error.getDefaultMessage(),
                         (first, second) -> first,
                         LinkedHashMap::new
                 ));
@@ -52,7 +52,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleUnexpected(Exception ex) {
-        return body(HttpStatus.INTERNAL_SERVER_ERROR, "Nao foi possivel concluir a operacao.");
+        return body(HttpStatus.INTERNAL_SERVER_ERROR, "Não foi possível concluir a operação.");
     }
 
     private ResponseEntity<Map<String, Object>> body(HttpStatus status, String message) {

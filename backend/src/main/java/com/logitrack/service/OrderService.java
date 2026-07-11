@@ -39,7 +39,7 @@ public class OrderService {
     public Dtos.OrderResponse create(Dtos.OrderRequest request) {
         orderRepository.findByOrderNumber(request.orderNumber())
                 .ifPresent(existing -> {
-                    throw new BusinessException("Ja existe um pedido com este numero.");
+                    throw new BusinessException("Já existe um pedido com este número.");
                 });
         var order = new CustomerOrder();
         apply(order, request);
@@ -52,7 +52,7 @@ public class OrderService {
         orderRepository.findByOrderNumber(request.orderNumber())
                 .filter(existing -> !existing.getId().equals(id))
                 .ifPresent(existing -> {
-                    throw new BusinessException("Ja existe um pedido com este numero.");
+                    throw new BusinessException("Já existe um pedido com este número.");
                 });
         apply(order, request);
         return DtoMapper.toOrder(order);
@@ -62,7 +62,7 @@ public class OrderService {
     public Dtos.OrderResponse cancel(Long id) {
         var order = findEntity(id);
         if (order.getStatus() == OrderStatus.DELIVERED) {
-            throw new BusinessException("Pedidos entregues nao podem ser cancelados.");
+            throw new BusinessException("Pedidos entregues não podem ser cancelados.");
         }
         order.setStatus(OrderStatus.CANCELED);
         return DtoMapper.toOrder(order);
@@ -71,7 +71,7 @@ public class OrderService {
     @Transactional(readOnly = true)
     public CustomerOrder findEntity(Long id) {
         return orderRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Pedido nao encontrado."));
+                .orElseThrow(() -> new ResourceNotFoundException("Pedido não encontrado."));
     }
 
     private void apply(CustomerOrder order, Dtos.OrderRequest request) {

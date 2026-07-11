@@ -72,34 +72,34 @@ export const incidentStatusOptions: Array<{ value: IncidentStatus; label: string
   { value: 'CANCELED', label: 'Cancelada' }
 ];
 
-const palette: Record<string, { fg: string; bg: string }> = {
-  PENDING: { fg: '#92400e', bg: '#fef3c7' },
-  PICKING: { fg: '#0369a1', bg: '#e0f2fe' },
-  COLLECTING: { fg: '#b45309', bg: '#fff7ed' },
-  IN_PROGRESS: { fg: '#047857', bg: '#d1fae5' },
-  ON_THE_WAY: { fg: '#1d4ed8', bg: '#dbeafe' },
-  DELIVERED: { fg: '#047857', bg: '#dcfce7' },
-  DELAYED: { fg: '#b91c1c', bg: '#fee2e2' },
-  CANCELED: { fg: '#475569', bg: '#e2e8f0' },
-  AVAILABLE: { fg: '#047857', bg: '#dcfce7' },
-  ON_ROUTE: { fg: '#1d4ed8', bg: '#dbeafe' },
-  UNAVAILABLE: { fg: '#b45309', bg: '#fef3c7' },
-  INACTIVE: { fg: '#475569', bg: '#e2e8f0' },
-  MAINTENANCE: { fg: '#b45309', bg: '#ffedd5' },
-  ACTIVE: { fg: '#047857', bg: '#dcfce7' },
-  PLANNED: { fg: '#0369a1', bg: '#e0f2fe' },
-  COMPLETED: { fg: '#6d28d9', bg: '#ede9fe' },
-  OPEN: { fg: '#b91c1c', bg: '#fee2e2' },
-  IN_REVIEW: { fg: '#b45309', bg: '#fef3c7' },
-  RESOLVED: { fg: '#047857', bg: '#dcfce7' },
-  LOW: { fg: '#047857', bg: '#dcfce7' },
-  MEDIUM: { fg: '#1d4ed8', bg: '#dbeafe' },
-  HIGH: { fg: '#b45309', bg: '#fef3c7' },
-  CRITICAL: { fg: '#b91c1c', bg: '#fee2e2' }
+const palette: Record<string, { fg: string; bg: string; border: string }> = {
+  PENDING: { fg: '#92400e', bg: '#fef3c7', border: '#fde68a' },
+  PICKING: { fg: '#0369a1', bg: '#e0f2fe', border: '#bae6fd' },
+  COLLECTING: { fg: '#0369a1', bg: '#e0f2fe', border: '#bae6fd' },
+  IN_PROGRESS: { fg: '#0f766e', bg: '#ccfbf1', border: '#99f6e4' },
+  ON_THE_WAY: { fg: '#1d4ed8', bg: '#dbeafe', border: '#bfdbfe' },
+  DELIVERED: { fg: '#047857', bg: '#dcfce7', border: '#bbf7d0' },
+  DELAYED: { fg: '#b91c1c', bg: '#fee2e2', border: '#fecaca' },
+  CANCELED: { fg: '#475569', bg: '#e2e8f0', border: '#cbd5e1' },
+  AVAILABLE: { fg: '#047857', bg: '#dcfce7', border: '#bbf7d0' },
+  ON_ROUTE: { fg: '#1d4ed8', bg: '#dbeafe', border: '#bfdbfe' },
+  UNAVAILABLE: { fg: '#92400e', bg: '#fef3c7', border: '#fde68a' },
+  INACTIVE: { fg: '#475569', bg: '#e2e8f0', border: '#cbd5e1' },
+  MAINTENANCE: { fg: '#92400e', bg: '#fef3c7', border: '#fde68a' },
+  ACTIVE: { fg: '#1d4ed8', bg: '#dbeafe', border: '#bfdbfe' },
+  PLANNED: { fg: '#92400e', bg: '#fef3c7', border: '#fde68a' },
+  COMPLETED: { fg: '#047857', bg: '#dcfce7', border: '#bbf7d0' },
+  OPEN: { fg: '#b91c1c', bg: '#fee2e2', border: '#fecaca' },
+  IN_REVIEW: { fg: '#92400e', bg: '#fef3c7', border: '#fde68a' },
+  RESOLVED: { fg: '#047857', bg: '#dcfce7', border: '#bbf7d0' },
+  LOW: { fg: '#047857', bg: '#dcfce7', border: '#bbf7d0' },
+  MEDIUM: { fg: '#1d4ed8', bg: '#dbeafe', border: '#bfdbfe' },
+  HIGH: { fg: '#92400e', bg: '#fef3c7', border: '#fde68a' },
+  CRITICAL: { fg: '#b91c1c', bg: '#fee2e2', border: '#fecaca' }
 };
 
 export function statusStyle(status: string) {
-  return palette[status] ?? { fg: '#334155', bg: '#f1f5f9' };
+  return palette[status] ?? { fg: '#334155', bg: '#f1f5f9', border: '#e2e8f0' };
 }
 
 export function optionLabel(options: Array<{ value: string; label: string }>, value?: string | null) {

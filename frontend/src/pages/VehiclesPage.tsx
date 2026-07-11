@@ -11,7 +11,10 @@ export function VehiclesPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
 
   useEffect(() => {
-    api.get<Driver[]>('/drivers').then((response) => setDrivers(response.data)).catch(() => setDrivers([]));
+    api
+      .get<Driver[]>('/drivers')
+      .then((response) => setDrivers(response.data))
+      .catch(() => setDrivers([]));
   }, []);
 
   const driverOptions = useMemo<Option[]>(
@@ -45,9 +48,9 @@ export function VehiclesPage() {
         { key: 'id', label: 'Patrimônio', render: (row) => formatCurrency(row.id * 1520) }
       ]}
       fields={[
-        { key: 'plate', label: 'Placa', required: true },
+        { key: 'plate', label: 'Placa', required: true, mask: 'plate' },
         { key: 'model', label: 'Modelo', required: true },
-        { key: 'capacityKg', label: 'Capacidade (kg)', type: 'number', required: true },
+        { key: 'capacityKg', label: 'Capacidade (kg)', type: 'number', required: true, min: 1 },
         { key: 'status', label: 'Status', type: 'select', options: vehicleStatusOptions, required: true },
         { key: 'linkedDriverId', label: 'Motorista vinculado', type: 'select', options: driverOptions }
       ]}

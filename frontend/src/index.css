@@ -17,9 +17,10 @@ body,
 
 body {
   background:
-    radial-gradient(circle at 20% 0%, rgba(16, 185, 129, 0.08), transparent 28%),
+    linear-gradient(180deg, rgba(16, 185, 129, 0.05), transparent 260px),
     #f5f8f7;
   color: #0f172a;
+  overflow-x: hidden;
 }
 
 a {
@@ -58,6 +59,49 @@ select {
   font-weight: 800;
   border: 3px solid #fff;
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.24);
+}
+
+.page-enter {
+  animation: page-enter 260ms ease both;
+}
+
+.soft-card {
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+}
+
+.soft-card:hover {
+  transform: translateY(-2px);
+  border-color: #d5e3de;
+  box-shadow: 0 18px 46px rgba(15, 23, 42, 0.11);
+}
+
+.stagger-item {
+  animation: stagger-in 360ms ease both;
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes stagger-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .print-only {

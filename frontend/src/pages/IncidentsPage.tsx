@@ -12,10 +12,7 @@ export function IncidentsPage() {
   const [orders, setOrders] = useState<Order[]>([]);
 
   useEffect(() => {
-    Promise.all([
-      api.get<Delivery[]>('/deliveries'),
-      api.get<Order[]>('/orders')
-    ])
+    Promise.all([api.get<Delivery[]>('/deliveries'), api.get<Order[]>('/orders')])
       .then(([deliveriesResponse, ordersResponse]) => {
         setDeliveries(deliveriesResponse.data);
         setOrders(ordersResponse.data);

@@ -1,9 +1,9 @@
 package com.logitrack.domain.enums;
 
 public enum VehicleStatus {
-    AVAILABLE("Disponivel"),
+    AVAILABLE("Disponível"),
     ON_ROUTE("Em rota"),
-    MAINTENANCE("Manutencao"),
+    MAINTENANCE("Manutenção"),
     INACTIVE("Inativo");
 
     private final String label;

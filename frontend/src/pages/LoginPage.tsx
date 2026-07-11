@@ -4,6 +4,7 @@ import {
   Button,
   Card,
   CardContent,
+  CircularProgress,
   Container,
   Stack,
   TextField,
@@ -55,7 +56,7 @@ export function LoginPage() {
       }}
     >
       <Container maxWidth="sm">
-        <Card sx={{ border: 0, boxShadow: '0 30px 80px rgba(0,0,0,0.25)' }}>
+        <Card className="page-enter" sx={{ border: 0, boxShadow: '0 30px 80px rgba(0,0,0,0.25)' }}>
           <CardContent sx={{ p: { xs: 3, sm: 5 } }}>
             <Stack spacing={3}>
               <Stack spacing={1.5} alignItems="center">
@@ -87,6 +88,7 @@ export function LoginPage() {
                     onChange={(event) => setEmail(event.target.value)}
                     required
                     fullWidth
+                    autoFocus
                     autoComplete="email"
                   />
                   <TextField
@@ -98,7 +100,13 @@ export function LoginPage() {
                     fullWidth
                     autoComplete="current-password"
                   />
-                  <Button type="submit" size="large" variant="contained" startIcon={<LockOutlinedIcon />} disabled={loading}>
+                  <Button
+                    type="submit"
+                    size="large"
+                    variant="contained"
+                    startIcon={loading ? <CircularProgress color="inherit" size={16} /> : <LockOutlinedIcon />}
+                    disabled={loading}
+                  >
                     {loading ? 'Entrando...' : 'Entrar no painel'}
                   </Button>
                 </Stack>

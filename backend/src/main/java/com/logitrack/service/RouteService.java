@@ -58,7 +58,7 @@ public class RouteService {
     @Transactional(readOnly = true)
     public RoutePlan findEntity(Long id) {
         return routeRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Rota nao encontrada."));
+                .orElseThrow(() -> new ResourceNotFoundException("Rota não encontrada."));
     }
 
     private void apply(RoutePlan route, Dtos.RouteRequest request) {

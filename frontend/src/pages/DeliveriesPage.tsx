@@ -4,21 +4,23 @@ import {
   Button,
   Card,
   CardContent,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   Grid,
   IconButton,
+  InputAdornment,
   LinearProgress,
   MenuItem,
-  Skeleton,
   Snackbar,
   Stack,
   Table,
   TableBody,
   TableCell,
   TableHead,
+  TablePagination,
   TableRow,
   TextField,
   Tooltip,
@@ -28,8 +30,10 @@ import {
 import type { Theme } from '@mui/material/styles';
 import AddIcon from '@mui/icons-material/Add';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import ClearIcon from '@mui/icons-material/Clear';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import EventNoteOutlinedIcon from '@mui/icons-material/EventNoteOutlined';
+import FilterAltOffOutlinedIcon from '@mui/icons-material/FilterAltOffOutlined';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
 import SearchIcon from '@mui/icons-material/Search';
@@ -37,8 +41,8 @@ import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { api, getErrorMessage } from '../api/client';
 import type { Delivery, Driver, Order, RoutePlan, Vehicle } from '../api/types';
-import { EmptyState } from '../components/DataState';
-import { formatDateTime, fromDateTimeInput, toDateTimeInput } from '../components/format';
+import { EmptyState, TableSkeleton } from '../components/DataState';
+import { clampPercent, formatDateTime, fromDateTimeInput, toDateTimeInput } from '../components/format';
 import { deliveryStatusOptions, incidentPriorityOptions, incidentTypeOptions } from '../components/status';
 import { StatusBadge } from '../components/StatusBadge';
 
@@ -80,6 +84,10 @@ const emptyIncidentForm: IncidentForm = {
   description: ''
 };
 
+function isBlank(value: unknown) {
+  return value === undefined || value === null || String(value).trim() === '';
+}
+
 export function DeliveriesPage() {
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -92,9 +100,17 @@ export function DeliveriesPage() {
   const [incidentDelivery, setIncidentDelivery] = useState<Delivery | null>(null);
   const [editing, setEditing] = useState<Delivery | null>(null);
   const [form, setForm] = useState<DeliveryForm>(emptyDeliveryForm);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState('');
   const [incidentForm, setIncidentForm] = useState<IncidentForm>(emptyIncidentForm);
+  const [incidentError, setIncidentError] = useState('');
+  const [savingDelivery, setSavingDelivery] = useState(false);
+  const [savingIncident, setSavingIncident] = useState(false);
+  const [rowActionId, setRowActionId] = useState<number | null>(null);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(8);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const isMobile = useMediaQuery((theme: Theme) => theme.breakpoints.down('md'));
@@ -137,9 +153,26 @@ export function DeliveriesPage() {
     });
   }, [deliveries, search, status]);
 
+  const paginatedDeliveries = useMemo(
+    () => filteredDeliveries.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+    [filteredDeliveries, page, rowsPerPage]
+  );
+
+  function resetPaging() {
+    setPage(0);
+  }
+
+  function clearFilters() {
+    setSearch('');
+    setStatus('');
+    resetPaging();
+  }
+
   function openCreate() {
     setEditing(null);
-    setForm(emptyDeliveryForm);
+    setForm({ ...emptyDeliveryForm });
+    setFormErrors({});
+    setFormError('');
     setFormOpen(true);
   }
 
@@ -156,11 +189,54 @@ export function DeliveriesPage() {
       status: delivery.status,
       progress: delivery.progress
     });
+    setFormErrors({});
+    setFormError('');
     setFormOpen(true);
+  }
+
+  function updateForm(key: keyof DeliveryForm, value: string | number) {
+    setForm((current) => ({ ...current, [key]: value }));
+    if (formErrors[key]) {
+      setFormErrors((current) => ({ ...current, [key]: '' }));
+    }
+  }
+
+  function validateDeliveryForm() {
+    const nextErrors: Record<string, string> = {};
+    const required: Array<[keyof DeliveryForm, string]> = [
+      ['orderId', 'Pedido'],
+      ['driverId', 'Motorista'],
+      ['vehicleId', 'Veículo'],
+      ['origin', 'Origem'],
+      ['destination', 'Destino'],
+      ['expectedAt', 'Previsão'],
+      ['status', 'Status']
+    ];
+
+    required.forEach(([key, label]) => {
+      if (isBlank(form[key])) {
+        nextErrors[key] = `${label} é obrigatório.`;
+      }
+    });
+
+    const progress = Number(form.progress);
+    if (!Number.isFinite(progress) || progress < 0 || progress > 100) {
+      nextErrors.progress = 'Informe um progresso entre 0 e 100.';
+    }
+
+    setFormErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
   }
 
   async function submitDelivery(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setFormError('');
+
+    if (!validateDeliveryForm()) {
+      setFormError('Revise os campos destacados antes de salvar.');
+      return;
+    }
+
     const payload = {
       orderId: Number(form.orderId),
       driverId: Number(form.driverId),
@@ -170,9 +246,10 @@ export function DeliveriesPage() {
       destination: form.destination,
       expectedAt: fromDateTimeInput(form.expectedAt),
       status: form.status,
-      progress: Number(form.progress)
+      progress: clampPercent(Number(form.progress))
     };
 
+    setSavingDelivery(true);
     try {
       if (editing) {
         await api.put(`/deliveries/${editing.id}`, payload);
@@ -184,35 +261,51 @@ export function DeliveriesPage() {
       setFormOpen(false);
       load();
     } catch (err) {
-      setError(getErrorMessage(err));
+      setFormError(getErrorMessage(err));
+    } finally {
+      setSavingDelivery(false);
     }
   }
 
   async function markDelivered(delivery: Delivery) {
+    setRowActionId(delivery.id);
     try {
       await api.post(`/deliveries/${delivery.id}/mark-delivered`);
       setMessage('Entrega marcada como entregue.');
       load();
     } catch (err) {
       setError(getErrorMessage(err));
+    } finally {
+      setRowActionId(null);
     }
   }
 
   async function cancelDelivery(delivery: Delivery) {
+    setRowActionId(delivery.id);
     try {
       await api.delete(`/deliveries/${delivery.id}`);
       setMessage('Entrega cancelada.');
       load();
     } catch (err) {
       setError(getErrorMessage(err));
+    } finally {
+      setRowActionId(null);
     }
   }
 
   async function submitIncident(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setIncidentError('');
+
     if (!incidentDelivery) {
       return;
     }
+    if (isBlank(incidentForm.responsible) || isBlank(incidentForm.description)) {
+      setIncidentError('Informe responsável e descrição para registrar a ocorrência.');
+      return;
+    }
+
+    setSavingIncident(true);
     try {
       await api.post('/incidents', {
         deliveryId: incidentDelivery.id,
@@ -224,19 +317,66 @@ export function DeliveriesPage() {
         description: incidentForm.description
       });
       setIncidentDelivery(null);
-      setIncidentForm(emptyIncidentForm);
+      setIncidentForm({ ...emptyIncidentForm });
       setMessage('Ocorrência registrada com sucesso.');
     } catch (err) {
-      setError(getErrorMessage(err));
+      setIncidentError(getErrorMessage(err));
+    } finally {
+      setSavingIncident(false);
     }
   }
 
-  function deliveryCard(delivery: Delivery) {
+  function deliveryActions(delivery: Delivery, compact = false) {
+    const busy = rowActionId === delivery.id;
     return (
-      <Card key={delivery.id}>
+      <Stack direction="row" spacing={0.5} justifyContent={compact ? 'flex-start' : 'flex-end'} flexWrap="wrap" useFlexGap>
+        <Tooltip title="Detalhes">
+          <IconButton aria-label={`Detalhes ${delivery.orderNumber}`} onClick={() => setDetailsOpen(delivery)} size="small">
+            <VisibilityOutlinedIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Editar">
+          <IconButton aria-label={`Editar ${delivery.orderNumber}`} onClick={() => openEdit(delivery)} size="small">
+            <EditOutlinedIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Registrar ocorrência">
+          <IconButton aria-label={`Registrar ocorrência ${delivery.orderNumber}`} onClick={() => setIncidentDelivery(delivery)} size="small">
+            <ReportProblemOutlinedIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Marcar como entregue">
+          <IconButton
+            aria-label={`Marcar ${delivery.orderNumber} como entregue`}
+            color="success"
+            onClick={() => markDelivered(delivery)}
+            disabled={busy}
+            size="small"
+          >
+            {busy ? <CircularProgress color="inherit" size={16} /> : <CheckCircleOutlineIcon fontSize="small" />}
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Cancelar entrega">
+          <IconButton
+            aria-label={`Cancelar entrega ${delivery.orderNumber}`}
+            color="error"
+            onClick={() => cancelDelivery(delivery)}
+            disabled={busy}
+            size="small"
+          >
+            <EventNoteOutlinedIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      </Stack>
+    );
+  }
+
+  function deliveryCard(delivery: Delivery, index: number) {
+    return (
+      <Card key={delivery.id} className="soft-card stagger-item" sx={{ animationDelay: `${index * 35}ms` }}>
         <CardContent>
-          <Stack spacing={1.2}>
-            <Stack direction="row" justifyContent="space-between" gap={2}>
+          <Stack spacing={1.3}>
+            <Stack direction="row" justifyContent="space-between" gap={2} alignItems="flex-start">
               <Box minWidth={0}>
                 <Typography fontWeight={900}>{delivery.orderNumber}</Typography>
                 <Typography variant="body2" color="text.secondary" noWrap>
@@ -245,29 +385,37 @@ export function DeliveriesPage() {
               </Box>
               <StatusBadge status={delivery.status} label={delivery.statusLabel} />
             </Stack>
-            <Typography variant="body2">Motorista: {delivery.driverName}</Typography>
-            <Typography variant="body2">Veículo: {delivery.vehiclePlate}</Typography>
-            <Typography variant="body2">Destino: {delivery.destination}</Typography>
+            <Grid container spacing={1}>
+              <Grid item xs={6}>
+                <Typography variant="caption" color="text.secondary" fontWeight={850}>
+                  Motorista
+                </Typography>
+                <Typography variant="body2" noWrap>
+                  {delivery.driverName}
+                </Typography>
+              </Grid>
+              <Grid item xs={6}>
+                <Typography variant="caption" color="text.secondary" fontWeight={850}>
+                  Veículo
+                </Typography>
+                <Typography variant="body2">{delivery.vehiclePlate}</Typography>
+              </Grid>
+              <Grid item xs={12}>
+                <Typography variant="caption" color="text.secondary" fontWeight={850}>
+                  Destino
+                </Typography>
+                <Typography variant="body2" noWrap>
+                  {delivery.destination}
+                </Typography>
+              </Grid>
+            </Grid>
             <Stack direction="row" spacing={1} alignItems="center">
-              <Typography variant="caption" fontWeight={800}>
+              <Typography variant="caption" fontWeight={850} minWidth={34}>
                 {delivery.progress}%
               </Typography>
-              <LinearProgress variant="determinate" value={delivery.progress} sx={{ flex: 1, height: 8, borderRadius: 2 }} />
+              <LinearProgress variant="determinate" value={delivery.progress} sx={{ flex: 1, height: 8 }} />
             </Stack>
-            <Stack direction="row" spacing={1} flexWrap="wrap">
-              <Button size="small" startIcon={<VisibilityOutlinedIcon />} onClick={() => setDetailsOpen(delivery)}>
-                Detalhes
-              </Button>
-              <Button size="small" startIcon={<EditOutlinedIcon />} onClick={() => openEdit(delivery)}>
-                Editar
-              </Button>
-              <Button size="small" startIcon={<ReportProblemOutlinedIcon />} onClick={() => setIncidentDelivery(delivery)}>
-                Ocorrência
-              </Button>
-              <Button size="small" color="success" startIcon={<CheckCircleOutlineIcon />} onClick={() => markDelivered(delivery)}>
-                Entregue
-              </Button>
-            </Stack>
+            {deliveryActions(delivery, true)}
           </Stack>
         </CardContent>
       </Card>
@@ -275,7 +423,7 @@ export function DeliveriesPage() {
   }
 
   return (
-    <Stack spacing={2.5}>
+    <Stack spacing={2.5} className="page-enter">
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} justifyContent="space-between" alignItems={{ md: 'center' }}>
         <Box>
           <Typography variant="h5">Entregas</Typography>
@@ -283,9 +431,9 @@ export function DeliveriesPage() {
             Atribua motoristas, veículos, rotas, acompanhe progresso e registre ocorrências.
           </Typography>
         </Box>
-        <Stack direction="row" spacing={1}>
-          <Tooltip title="Atualizar">
-            <IconButton aria-label="Atualizar entregas" onClick={load}>
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          <Tooltip title="Atualizar dados">
+            <IconButton aria-label="Atualizar entregas" onClick={load} disabled={loading}>
               <RefreshIcon />
             </IconButton>
           </Tooltip>
@@ -295,28 +443,47 @@ export function DeliveriesPage() {
         </Stack>
       </Stack>
 
-      <Card>
+      <Card className="soft-card">
         <CardContent>
-          <Grid container spacing={1.5}>
-            <Grid item xs={12} md={8}>
+          <Grid container spacing={1.5} alignItems="center">
+            <Grid item xs={12} md={7}>
               <TextField
                 fullWidth
-                size="small"
                 aria-label="Buscar entregas"
                 placeholder="Buscar por pedido, cliente, motorista ou veículo"
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                InputProps={{ startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} /> }}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  resetPaging();
+                }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon fontSize="small" />
+                    </InputAdornment>
+                  ),
+                  endAdornment: search ? (
+                    <InputAdornment position="end">
+                      <Tooltip title="Limpar busca">
+                        <IconButton aria-label="Limpar busca" size="small" onClick={() => setSearch('')}>
+                          <ClearIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </InputAdornment>
+                  ) : undefined
+                }}
               />
             </Grid>
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} md={3}>
               <TextField
                 select
                 fullWidth
-                size="small"
                 label="Status"
                 value={status}
-                onChange={(event) => setStatus(event.target.value)}
+                onChange={(event) => {
+                  setStatus(event.target.value);
+                  resetPaging();
+                }}
               >
                 <MenuItem value="">Todos</MenuItem>
                 {deliveryStatusOptions.map((option) => (
@@ -326,26 +493,50 @@ export function DeliveriesPage() {
                 ))}
               </TextField>
             </Grid>
+            <Grid item xs={12} md={2}>
+              <Button
+                fullWidth
+                variant="outlined"
+                startIcon={<FilterAltOffOutlinedIcon />}
+                onClick={clearFilters}
+                disabled={!search && !status}
+              >
+                Limpar
+              </Button>
+            </Grid>
           </Grid>
         </CardContent>
       </Card>
 
       {loading ? (
-        <Card>
-          <CardContent>
-            <Stack spacing={1}>
-              {Array.from({ length: 8 }).map((_, index) => (
-                <Skeleton key={index} height={44} />
-              ))}
-            </Stack>
-          </CardContent>
-        </Card>
+        <TableSkeleton rows={8} columns={8} />
       ) : filteredDeliveries.length === 0 ? (
-        <EmptyState title="Nenhuma entrega encontrada" description="Ajuste os filtros ou crie uma nova entrega." />
+        <EmptyState
+          title="Nenhuma entrega encontrada"
+          description="Ajuste os filtros aplicados ou crie uma nova entrega para acompanhar a operação."
+          actionLabel="Nova entrega"
+          onAction={openCreate}
+        />
       ) : isMobile ? (
-        <Stack spacing={1.5}>{filteredDeliveries.map(deliveryCard)}</Stack>
+        <Stack spacing={1.5}>
+          {paginatedDeliveries.map(deliveryCard)}
+          <TablePagination
+            component="div"
+            count={filteredDeliveries.length}
+            page={page}
+            onPageChange={(_, nextPage) => setPage(nextPage)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={(event) => {
+              setRowsPerPage(Number(event.target.value));
+              setPage(0);
+            }}
+            rowsPerPageOptions={[5, 8, 15]}
+            labelRowsPerPage="Itens por página"
+            labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
+          />
+        </Stack>
       ) : (
-        <Card>
+        <Card className="soft-card">
           <Box sx={{ overflowX: 'auto' }}>
             <Table aria-label="Lista de entregas">
               <TableHead>
@@ -362,9 +553,9 @@ export function DeliveriesPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredDeliveries.map((delivery) => (
+                {paginatedDeliveries.map((delivery) => (
                   <TableRow hover key={delivery.id}>
-                    <TableCell>{delivery.orderNumber}</TableCell>
+                    <TableCell sx={{ fontWeight: 850 }}>{delivery.orderNumber}</TableCell>
                     <TableCell>{delivery.customerName}</TableCell>
                     <TableCell>{delivery.driverName}</TableCell>
                     <TableCell>{delivery.vehiclePlate}</TableCell>
@@ -372,134 +563,197 @@ export function DeliveriesPage() {
                     <TableCell>
                       <StatusBadge status={delivery.status} label={delivery.statusLabel} />
                     </TableCell>
-                    <TableCell sx={{ minWidth: 140 }}>
+                    <TableCell sx={{ minWidth: 150 }}>
                       <Stack direction="row" spacing={1} alignItems="center">
-                        <Typography variant="caption" fontWeight={800}>
+                        <Typography variant="caption" fontWeight={850} minWidth={34}>
                           {delivery.progress}%
                         </Typography>
-                        <LinearProgress variant="determinate" value={delivery.progress} sx={{ flex: 1, height: 7, borderRadius: 2 }} />
+                        <LinearProgress variant="determinate" value={delivery.progress} sx={{ flex: 1, height: 7 }} />
                       </Stack>
                     </TableCell>
                     <TableCell>{formatDateTime(delivery.expectedAt)}</TableCell>
-                    <TableCell align="right">
-                      <Tooltip title="Detalhes">
-                        <IconButton aria-label={`Detalhes ${delivery.orderNumber}`} onClick={() => setDetailsOpen(delivery)}>
-                          <VisibilityOutlinedIcon />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Editar">
-                        <IconButton aria-label={`Editar ${delivery.orderNumber}`} onClick={() => openEdit(delivery)}>
-                          <EditOutlinedIcon />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Registrar ocorrência">
-                        <IconButton aria-label={`Registrar ocorrência ${delivery.orderNumber}`} onClick={() => setIncidentDelivery(delivery)}>
-                          <ReportProblemOutlinedIcon />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Marcar como entregue">
-                        <IconButton aria-label={`Marcar ${delivery.orderNumber} como entregue`} color="success" onClick={() => markDelivered(delivery)}>
-                          <CheckCircleOutlineIcon />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Cancelar entrega">
-                        <IconButton aria-label={`Cancelar entrega ${delivery.orderNumber}`} color="error" onClick={() => cancelDelivery(delivery)}>
-                          <EventNoteOutlinedIcon />
-                        </IconButton>
-                      </Tooltip>
-                    </TableCell>
+                    <TableCell align="right">{deliveryActions(delivery)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </Box>
+          <TablePagination
+            component="div"
+            count={filteredDeliveries.length}
+            page={page}
+            onPageChange={(_, nextPage) => setPage(nextPage)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={(event) => {
+              setRowsPerPage(Number(event.target.value));
+              setPage(0);
+            }}
+            rowsPerPageOptions={[5, 8, 15, 25]}
+            labelRowsPerPage="Itens por página"
+            labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
+          />
         </Card>
       )}
 
-      <Dialog open={formOpen} onClose={() => setFormOpen(false)} maxWidth="md" fullWidth>
+      <Dialog open={formOpen} onClose={() => (savingDelivery ? undefined : setFormOpen(false))} maxWidth="md" fullWidth>
         <Box component="form" onSubmit={submitDelivery}>
           <DialogTitle>{editing ? 'Editar entrega' : 'Nova entrega'}</DialogTitle>
           <DialogContent dividers>
-            <Grid container spacing={2} pt={0.5}>
-              <Grid item xs={12} sm={6}>
-                <TextField select fullWidth required label="Pedido" value={form.orderId} onChange={(event) => setForm({ ...form, orderId: event.target.value })}>
-                  {orders.map((order) => (
-                    <MenuItem key={order.id} value={order.id}>
-                      {order.orderNumber} - {order.customerName}
-                    </MenuItem>
-                  ))}
-                </TextField>
+            <Stack spacing={2} pt={0.5}>
+              {formError ? <Alert severity="error">{formError}</Alert> : null}
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    select
+                    fullWidth
+                    required
+                    autoFocus
+                    label="Pedido"
+                    value={form.orderId}
+                    error={Boolean(formErrors.orderId)}
+                    helperText={formErrors.orderId || ' '}
+                    onChange={(event) => updateForm('orderId', event.target.value)}
+                  >
+                    {orders.map((order) => (
+                      <MenuItem key={order.id} value={order.id}>
+                        {order.orderNumber} - {order.customerName}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    select
+                    fullWidth
+                    required
+                    label="Motorista"
+                    value={form.driverId}
+                    error={Boolean(formErrors.driverId)}
+                    helperText={formErrors.driverId || ' '}
+                    onChange={(event) => updateForm('driverId', event.target.value)}
+                  >
+                    {drivers.map((driver) => (
+                      <MenuItem key={driver.id} value={driver.id}>
+                        {driver.name} ({driver.statusLabel})
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    select
+                    fullWidth
+                    required
+                    label="Veículo"
+                    value={form.vehicleId}
+                    error={Boolean(formErrors.vehicleId)}
+                    helperText={formErrors.vehicleId || ' '}
+                    onChange={(event) => updateForm('vehicleId', event.target.value)}
+                  >
+                    {vehicles.map((vehicle) => (
+                      <MenuItem key={vehicle.id} value={vehicle.id}>
+                        {vehicle.plate} - {vehicle.model} ({vehicle.statusLabel})
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    select
+                    fullWidth
+                    label="Rota"
+                    value={form.routeId}
+                    helperText=" "
+                    onChange={(event) => updateForm('routeId', event.target.value)}
+                  >
+                    <MenuItem value="">Sem rota</MenuItem>
+                    {routes.map((route) => (
+                      <MenuItem key={route.id} value={route.id}>
+                        {route.name}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    required
+                    label="Origem"
+                    value={form.origin}
+                    error={Boolean(formErrors.origin)}
+                    helperText={formErrors.origin || ' '}
+                    onChange={(event) => updateForm('origin', event.target.value)}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    required
+                    label="Destino"
+                    value={form.destination}
+                    error={Boolean(formErrors.destination)}
+                    helperText={formErrors.destination || ' '}
+                    onChange={(event) => updateForm('destination', event.target.value)}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    fullWidth
+                    required
+                    type="datetime-local"
+                    label="Previsão"
+                    InputLabelProps={{ shrink: true }}
+                    value={form.expectedAt}
+                    error={Boolean(formErrors.expectedAt)}
+                    helperText={formErrors.expectedAt || ' '}
+                    onChange={(event) => updateForm('expectedAt', event.target.value)}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    select
+                    fullWidth
+                    required
+                    label="Status"
+                    value={form.status}
+                    error={Boolean(formErrors.status)}
+                    helperText={formErrors.status || ' '}
+                    onChange={(event) => updateForm('status', event.target.value)}
+                  >
+                    {deliveryStatusOptions.map((option) => (
+                      <MenuItem key={option.value} value={option.value}>
+                        {option.label}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    fullWidth
+                    required
+                    type="number"
+                    label="Progresso (%)"
+                    inputProps={{ min: 0, max: 100 }}
+                    value={form.progress}
+                    error={Boolean(formErrors.progress)}
+                    helperText={formErrors.progress || ' '}
+                    onChange={(event) => updateForm('progress', event.target.value)}
+                  />
+                </Grid>
               </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField select fullWidth required label="Motorista" value={form.driverId} onChange={(event) => setForm({ ...form, driverId: event.target.value })}>
-                  {drivers.map((driver) => (
-                    <MenuItem key={driver.id} value={driver.id}>
-                      {driver.name} ({driver.statusLabel})
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField select fullWidth required label="Veículo" value={form.vehicleId} onChange={(event) => setForm({ ...form, vehicleId: event.target.value })}>
-                  {vehicles.map((vehicle) => (
-                    <MenuItem key={vehicle.id} value={vehicle.id}>
-                      {vehicle.plate} - {vehicle.model} ({vehicle.statusLabel})
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField select fullWidth label="Rota" value={form.routeId} onChange={(event) => setForm({ ...form, routeId: event.target.value })}>
-                  <MenuItem value="">Sem rota</MenuItem>
-                  {routes.map((route) => (
-                    <MenuItem key={route.id} value={route.id}>
-                      {route.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField fullWidth required label="Origem" value={form.origin} onChange={(event) => setForm({ ...form, origin: event.target.value })} />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField fullWidth required label="Destino" value={form.destination} onChange={(event) => setForm({ ...form, destination: event.target.value })} />
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  fullWidth
-                  required
-                  type="datetime-local"
-                  label="Previsão"
-                  InputLabelProps={{ shrink: true }}
-                  value={form.expectedAt}
-                  onChange={(event) => setForm({ ...form, expectedAt: event.target.value })}
-                />
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <TextField select fullWidth required label="Status" value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })}>
-                  {deliveryStatusOptions.map((option) => (
-                    <MenuItem key={option.value} value={option.value}>
-                      {option.label}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  fullWidth
-                  required
-                  type="number"
-                  label="Progresso (%)"
-                  value={form.progress}
-                  onChange={(event) => setForm({ ...form, progress: event.target.value })}
-                />
-              </Grid>
-            </Grid>
+            </Stack>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setFormOpen(false)}>Cancelar</Button>
-            <Button type="submit" variant="contained">
-              Salvar
+            <Button onClick={() => setFormOpen(false)} disabled={savingDelivery}>
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={savingDelivery}
+              startIcon={savingDelivery ? <CircularProgress color="inherit" size={16} /> : undefined}
+            >
+              {savingDelivery ? 'Salvando...' : 'Salvar'}
             </Button>
           </DialogActions>
         </Box>
@@ -510,29 +764,33 @@ export function DeliveriesPage() {
         <DialogContent dividers>
           {detailsOpen ? (
             <Stack spacing={2}>
-              <Stack direction="row" justifyContent="space-between">
-                <Box>
+              <Stack direction="row" justifyContent="space-between" gap={2} alignItems="flex-start">
+                <Box minWidth={0}>
                   <Typography variant="h6">{detailsOpen.orderNumber}</Typography>
                   <Typography color="text.secondary">{detailsOpen.customerName}</Typography>
                 </Box>
                 <StatusBadge status={detailsOpen.status} label={detailsOpen.statusLabel} />
               </Stack>
-              <Stack spacing={1.5}>
-                {detailsOpen.timeline.map((item) => (
-                  <Stack key={item.id} direction="row" spacing={1.5}>
-                    <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: 'primary.main', mt: 0.8 }} />
-                    <Box>
-                      <Typography fontWeight={900}>{item.title}</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {item.description}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {formatDateTime(item.timestamp)}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                ))}
-              </Stack>
+              {detailsOpen.timeline.length ? (
+                <Stack spacing={1.5}>
+                  {detailsOpen.timeline.map((item) => (
+                    <Stack key={item.id} direction="row" spacing={1.5}>
+                      <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: 'primary.main', mt: 0.8, flex: '0 0 auto' }} />
+                      <Box minWidth={0}>
+                        <Typography fontWeight={900}>{item.title}</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {item.description}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatDateTime(item.timestamp)}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  ))}
+                </Stack>
+              ) : (
+                <EmptyState title="Sem eventos na timeline" description="Atualizações operacionais desta entrega aparecerão aqui." />
+              )}
             </Stack>
           ) : null}
         </DialogContent>
@@ -541,11 +799,12 @@ export function DeliveriesPage() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={Boolean(incidentDelivery)} onClose={() => setIncidentDelivery(null)} maxWidth="sm" fullWidth>
+      <Dialog open={Boolean(incidentDelivery)} onClose={() => (savingIncident ? undefined : setIncidentDelivery(null))} maxWidth="sm" fullWidth>
         <Box component="form" onSubmit={submitIncident}>
           <DialogTitle>Registrar ocorrência</DialogTitle>
           <DialogContent dividers>
             <Stack spacing={2} pt={0.5}>
+              {incidentError ? <Alert severity="error">{incidentError}</Alert> : null}
               <Alert severity="info" icon={false}>
                 {incidentDelivery?.orderNumber} - {incidentDelivery?.customerName}
               </Alert>
@@ -568,7 +827,7 @@ export function DeliveriesPage() {
                 fullWidth
                 required
                 multiline
-                minRows={3}
+                minRows={4}
                 label="Descrição"
                 value={incidentForm.description}
                 onChange={(event) => setIncidentForm({ ...incidentForm, description: event.target.value })}
@@ -576,9 +835,16 @@ export function DeliveriesPage() {
             </Stack>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setIncidentDelivery(null)}>Cancelar</Button>
-            <Button type="submit" variant="contained">
-              Registrar
+            <Button onClick={() => setIncidentDelivery(null)} disabled={savingIncident}>
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={savingIncident}
+              startIcon={savingIncident ? <CircularProgress color="inherit" size={16} /> : undefined}
+            >
+              {savingIncident ? 'Registrando...' : 'Registrar'}
             </Button>
           </DialogActions>
         </Box>

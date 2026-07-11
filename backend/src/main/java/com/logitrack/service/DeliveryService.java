@@ -163,7 +163,7 @@ public class DeliveryService {
         delivery.setProgress(100);
         delivery.setDeliveredAt(LocalDateTime.now());
         moveMarker(delivery);
-        delivery.addTimeline(timeline("Entrega concluida", "Cliente confirmou o recebimento.", DeliveryStatus.DELIVERED));
+        delivery.addTimeline(timeline("Entrega concluída", "Cliente confirmou o recebimento.", DeliveryStatus.DELIVERED));
         delivery.getOrder().setStatus(OrderStatus.DELIVERED);
         var driver = delivery.getDriver();
         driver.setDeliveriesCompleted(driver.getDeliveriesCompleted() + 1);
@@ -176,7 +176,7 @@ public class DeliveryService {
     public Dtos.DeliveryResponse cancel(Long id) {
         var delivery = findEntity(id);
         delivery.setStatus(DeliveryStatus.CANCELED);
-        delivery.addTimeline(timeline("Entrega cancelada", "Operacao encerrada antes da conclusao.", DeliveryStatus.CANCELED));
+        delivery.addTimeline(timeline("Entrega cancelada", "Operação encerrada antes da conclusão.", DeliveryStatus.CANCELED));
         releaseDriver(delivery.getDriver());
         releaseVehicle(delivery.getVehicle());
         return DtoMapper.toDelivery(delivery);
@@ -185,27 +185,27 @@ public class DeliveryService {
     @Transactional(readOnly = true)
     public Delivery findEntity(Long id) {
         return deliveryRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Entrega nao encontrada."));
+                .orElseThrow(() -> new ResourceNotFoundException("Entrega não encontrada."));
     }
 
     private CustomerOrder findOrder(Long id) {
         return orderRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Pedido vinculado nao encontrado."));
+                .orElseThrow(() -> new ResourceNotFoundException("Pedido vinculado não encontrado."));
     }
 
     private Driver findDriver(Long id) {
         return driverRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Motorista vinculado nao encontrado."));
+                .orElseThrow(() -> new ResourceNotFoundException("Motorista vinculado não encontrado."));
     }
 
     private Vehicle findVehicle(Long id) {
         return vehicleRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Veiculo vinculado nao encontrado."));
+                .orElseThrow(() -> new ResourceNotFoundException("Veículo vinculado não encontrado."));
     }
 
     private RoutePlan findRoute(Long id) {
         return routeRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Rota vinculada nao encontrada."));
+                .orElseThrow(() -> new ResourceNotFoundException("Rota vinculada não encontrada."));
     }
 
     private void validateOrderForDelivery(CustomerOrder order) {
@@ -216,16 +216,16 @@ public class DeliveryService {
 
     private void validateDriverAvailable(Driver driver) {
         if (driver.getStatus() != DriverStatus.AVAILABLE) {
-            throw new BusinessException("Motorista indisponivel nao pode receber nova entrega.");
+            throw new BusinessException("Motorista indisponível não pode receber nova entrega.");
         }
     }
 
     private void validateVehicleAvailable(Vehicle vehicle) {
         if (vehicle.getStatus() == VehicleStatus.MAINTENANCE) {
-            throw new BusinessException("Veiculo em manutencao nao pode ser atribuido.");
+            throw new BusinessException("Veículo em manutenção não pode ser atribuído.");
         }
         if (vehicle.getStatus() != VehicleStatus.AVAILABLE) {
-            throw new BusinessException("Veiculo indisponivel nao pode ser atribuido.");
+            throw new BusinessException("Veículo indisponível não pode ser atribuído.");
         }
     }
 

@@ -15,7 +15,7 @@ interface DeliveryMapProps {
 function createIcon(color: string) {
   return L.divIcon({
     className: '',
-    html: `<div class="delivery-marker" style="background:${color}">↗</div>`,
+    html: `<div class="delivery-marker" style="background:${color}">&#8599;</div>`,
     iconSize: [34, 34],
     iconAnchor: [17, 17]
   });
@@ -46,7 +46,7 @@ function MapBody({ deliveries, height = 440 }: DeliveryMapProps) {
           >
             <Popup>
               <Stack spacing={0.6}>
-                <Typography fontWeight={800}>{delivery.orderNumber}</Typography>
+                <Typography fontWeight={850}>{delivery.orderNumber}</Typography>
                 <Typography variant="body2">{delivery.customerName}</Typography>
                 <Typography variant="body2" color="text.secondary">
                   Motorista: {delivery.driverName}
@@ -69,36 +69,38 @@ function MapBody({ deliveries, height = 440 }: DeliveryMapProps) {
           />
         ))}
       </MapContainer>
-      <Stack
-        direction="row"
-        spacing={1}
-        flexWrap="wrap"
-        sx={{
-          position: 'absolute',
-          left: 12,
-          right: 12,
-          bottom: 12,
-          zIndex: 500,
-          bgcolor: 'rgba(255,255,255,0.92)',
-          border: '1px solid #e6ecea',
-          borderRadius: 2,
-          px: 1.2,
-          py: 1,
-          boxShadow: '0 10px 26px rgba(15,23,42,0.12)'
-        }}
-      >
-        {deliveries.slice(0, 5).map((delivery) => (
-          <Stack key={`legend-${delivery.id}`} direction="row" spacing={0.8} alignItems="center">
-            <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: delivery.color }} />
-            <Typography variant="caption" fontWeight={800}>
-              {delivery.statusLabel}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {delivery.progress}%
-            </Typography>
-          </Stack>
-        ))}
-      </Stack>
+      {deliveries.length ? (
+        <Stack
+          direction="row"
+          spacing={1}
+          flexWrap="wrap"
+          sx={{
+            position: 'absolute',
+            left: 12,
+            right: 12,
+            bottom: 12,
+            zIndex: 500,
+            bgcolor: 'rgba(255,255,255,0.94)',
+            border: '1px solid #e6ecea',
+            borderRadius: 2,
+            px: 1.2,
+            py: 1,
+            boxShadow: '0 10px 26px rgba(15,23,42,0.12)'
+          }}
+        >
+          {deliveries.slice(0, 5).map((delivery) => (
+            <Stack key={`legend-${delivery.id}`} direction="row" spacing={0.8} alignItems="center">
+              <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: delivery.color }} />
+              <Typography variant="caption" fontWeight={850}>
+                {delivery.statusLabel}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {delivery.progress}%
+              </Typography>
+            </Stack>
+          ))}
+        </Stack>
+      ) : null}
     </Box>
   );
 }

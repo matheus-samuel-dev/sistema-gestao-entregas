@@ -42,7 +42,7 @@ public class VehicleService {
     public Dtos.VehicleResponse create(Dtos.VehicleRequest request) {
         vehicleRepository.findByPlate(normalizePlate(request.plate()))
                 .ifPresent(existing -> {
-                    throw new BusinessException("Ja existe veiculo com esta placa.");
+                    throw new BusinessException("Já existe veículo com esta placa.");
                 });
         var vehicle = new Vehicle();
         apply(vehicle, request);
@@ -55,7 +55,7 @@ public class VehicleService {
         vehicleRepository.findByPlate(normalizePlate(request.plate()))
                 .filter(existing -> !existing.getId().equals(id))
                 .ifPresent(existing -> {
-                    throw new BusinessException("Ja existe veiculo com esta placa.");
+                    throw new BusinessException("Já existe veículo com esta placa.");
                 });
         apply(vehicle, request);
         return DtoMapper.toVehicle(vehicle);
@@ -65,7 +65,7 @@ public class VehicleService {
     public Dtos.VehicleResponse inactivate(Long id) {
         var vehicle = findEntity(id);
         if (vehicle.getStatus() == VehicleStatus.ON_ROUTE) {
-            throw new BusinessException("Veiculo em rota nao pode ser inativado.");
+            throw new BusinessException("Veículo em rota não pode ser inativado.");
         }
         vehicle.setStatus(VehicleStatus.INACTIVE);
         return DtoMapper.toVehicle(vehicle);
@@ -74,7 +74,7 @@ public class VehicleService {
     @Transactional(readOnly = true)
     public Vehicle findEntity(Long id) {
         return vehicleRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Veiculo nao encontrado."));
+                .orElseThrow(() -> new ResourceNotFoundException("Veículo não encontrado."));
     }
 
     private void apply(Vehicle vehicle, Dtos.VehicleRequest request) {
@@ -86,7 +86,7 @@ public class VehicleService {
             vehicle.setLinkedDriver(null);
         } else {
             var driver = driverRepository.findById(request.linkedDriverId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Motorista vinculado nao encontrado."));
+                    .orElseThrow(() -> new ResourceNotFoundException("Motorista vinculado não encontrado."));
             vehicle.setLinkedDriver(driver);
         }
     }

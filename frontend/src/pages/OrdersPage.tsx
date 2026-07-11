@@ -28,7 +28,7 @@ export function OrdersPage() {
         { key: 'orderNumber', label: 'Pedido', minWidth: 110 },
         { key: 'customerName', label: 'Cliente', minWidth: 180 },
         { key: 'city', label: 'Cidade' },
-        { key: 'value', label: 'Valor', render: (row) => <Typography fontWeight={800}>{formatCurrency(row.value)}</Typography> },
+        { key: 'value', label: 'Valor', render: (row) => <Typography fontWeight={850}>{formatCurrency(row.value)}</Typography> },
         { key: 'status', label: 'Status', render: (row) => <StatusBadge status={row.status} label={row.statusLabel} /> },
         { key: 'createdAt', label: 'Criação', render: (row) => formatDateTime(row.createdAt), minWidth: 150 },
         { key: 'expectedDeliveryAt', label: 'Previsão', render: (row) => formatDateTime(row.expectedDeliveryAt), minWidth: 150 }
@@ -36,11 +36,11 @@ export function OrdersPage() {
       fields={[
         { key: 'orderNumber', label: 'Número do pedido', required: true },
         { key: 'customerName', label: 'Cliente', required: true },
-        { key: 'phone', label: 'Telefone', required: true },
-        { key: 'value', label: 'Valor', type: 'number', required: true },
+        { key: 'phone', label: 'Telefone', required: true, mask: 'phone' },
+        { key: 'value', label: 'Valor', type: 'number', required: true, min: 0.01 },
         { key: 'address', label: 'Endereço', required: true, xs: 12 },
         { key: 'city', label: 'Cidade', required: true },
-        { key: 'state', label: 'Estado', required: true },
+        { key: 'state', label: 'Estado', required: true, mask: 'state' },
         { key: 'status', label: 'Status', type: 'select', options: orderStatusOptions, required: true },
         { key: 'expectedDeliveryAt', label: 'Previsão de entrega', type: 'datetime', required: true }
       ]}

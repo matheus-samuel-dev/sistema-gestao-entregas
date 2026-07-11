@@ -19,5 +19,5 @@ export function getErrorMessage(error: unknown) {
       return message;
     }
   }
-  return 'Nao foi possivel concluir a operacao.';
+  return 'Não foi possível concluir a operação.';
 }

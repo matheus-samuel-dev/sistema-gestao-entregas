@@ -43,7 +43,7 @@ class OrderServiceTest {
 
         assertThatThrownBy(() -> orderService.create(request))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Ja existe");
+                .hasMessageContaining("Já existe");
     }
 
     private Dtos.OrderRequest request(String number) {
@@ -52,7 +52,7 @@ class OrderServiceTest {
                 "Cliente Teste",
                 "(11) 99999-0000",
                 "Rua Teste, 100",
-                "Sao Paulo",
+                "São Paulo",
                 "SP",
                 BigDecimal.valueOf(150.75),
                 OrderStatus.PENDING,

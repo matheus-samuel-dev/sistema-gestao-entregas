@@ -55,7 +55,7 @@ class DeliveryServiceTest {
 
         assertThatThrownBy(() -> deliveryService.create(request(fixture)))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Motorista indisponivel");
+                .hasMessageContaining("Motorista indisponível");
     }
 
     @Test
@@ -64,7 +64,7 @@ class DeliveryServiceTest {
 
         assertThatThrownBy(() -> deliveryService.create(request(fixture)))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("manutencao");
+                .hasMessageContaining("manutenção");
     }
 
     @Test
@@ -104,7 +104,7 @@ class DeliveryServiceTest {
         order.setCustomerName("Cliente Entrega");
         order.setPhone("(11) 98888-0000");
         order.setAddress("Rua Entrega, 200");
-        order.setCity("Sao Paulo");
+        order.setCity("São Paulo");
         order.setState("SP");
         order.setValue(BigDecimal.valueOf(240));
         order.setStatus(OrderStatus.PENDING);

@@ -16,8 +16,11 @@ export function StatusBadge({ status, label, size = 'small' }: StatusBadgeProps)
       sx={{
         bgcolor: colors.bg,
         color: colors.fg,
+        border: '1px solid',
+        borderColor: colors.border,
         borderRadius: '6px',
-        fontWeight: 800,
+        fontWeight: 850,
+        letterSpacing: 0,
         '.MuiChip-label': { px: 1 }
       }}
     />

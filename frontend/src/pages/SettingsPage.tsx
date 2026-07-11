@@ -5,16 +5,19 @@ import {
   Card,
   CardContent,
   Checkbox,
+  CircularProgress,
   Divider,
   FormControlLabel,
   Grid,
   MenuItem,
+  Snackbar,
   Stack,
   TextField,
   Typography
 } from '@mui/material';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import { useEffect, useState } from 'react';
+import { maskCnpj, maskPhone } from '../components/format';
 
 const defaultSettings = {
   companyName: 'LogiTrack Operações',
@@ -41,37 +44,50 @@ const categories = [
 export function SettingsPage() {
   const [settings, setSettings] = useState(defaultSettings);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem('logitrack.settings');
-    if (stored) {
-      setSettings(JSON.parse(stored));
+    if (!stored) {
+      return;
+    }
+
+    try {
+      setSettings({ ...defaultSettings, ...JSON.parse(stored) });
+    } catch {
+      localStorage.removeItem('logitrack.settings');
     }
   }, []);
 
   function save() {
-    localStorage.setItem('logitrack.settings', JSON.stringify(settings));
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 3000);
+    setSaving(true);
+    window.setTimeout(() => {
+      localStorage.setItem('logitrack.settings', JSON.stringify(settings));
+      setSaving(false);
+      setSaved(true);
+    }, 350);
   }
 
   return (
-    <Stack spacing={2.5}>
+    <Stack spacing={2.5} className="page-enter">
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} justifyContent="space-between" alignItems={{ md: 'center' }}>
         <Box>
           <Typography variant="h5">Configurações</Typography>
           <Typography color="text.secondary">Dados da empresa, usuários, parâmetros de entrega e preferências visuais.</Typography>
         </Box>
-        <Button variant="contained" startIcon={<SaveOutlinedIcon />} onClick={save}>
-          Salvar
+        <Button
+          variant="contained"
+          startIcon={saving ? <CircularProgress color="inherit" size={16} /> : <SaveOutlinedIcon />}
+          onClick={save}
+          disabled={saving}
+        >
+          {saving ? 'Salvando...' : 'Salvar'}
         </Button>
       </Stack>
 
-      {saved ? <Alert severity="success">Configurações salvas localmente.</Alert> : null}
-
       <Grid container spacing={2}>
         <Grid item xs={12} lg={7}>
-          <Card>
+          <Card className="soft-card">
             <CardContent>
               <Typography variant="h6" mb={2}>
                 Dados da empresa
@@ -81,10 +97,10 @@ export function SettingsPage() {
                   <TextField fullWidth label="Empresa" value={settings.companyName} onChange={(event) => setSettings({ ...settings, companyName: event.target.value })} />
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                  <TextField fullWidth label="CNPJ" value={settings.document} onChange={(event) => setSettings({ ...settings, document: event.target.value })} />
+                  <TextField fullWidth label="CNPJ" value={settings.document} onChange={(event) => setSettings({ ...settings, document: maskCnpj(event.target.value) })} />
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                  <TextField fullWidth label="Telefone" value={settings.phone} onChange={(event) => setSettings({ ...settings, phone: event.target.value })} />
+                  <TextField fullWidth label="Telefone" value={settings.phone} onChange={(event) => setSettings({ ...settings, phone: maskPhone(event.target.value) })} />
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField fullWidth label="Endereço" value={settings.address} onChange={(event) => setSettings({ ...settings, address: event.target.value })} />
@@ -95,7 +111,7 @@ export function SettingsPage() {
         </Grid>
 
         <Grid item xs={12} lg={5}>
-          <Card>
+          <Card className="soft-card">
             <CardContent>
               <Typography variant="h6" mb={2}>
                 Usuários
@@ -113,7 +129,7 @@ export function SettingsPage() {
         </Grid>
 
         <Grid item xs={12} lg={7}>
-          <Card>
+          <Card className="soft-card">
             <CardContent>
               <Typography variant="h6" mb={2}>
                 Parâmetros de entrega
@@ -124,6 +140,7 @@ export function SettingsPage() {
                     fullWidth
                     type="number"
                     label="SLA padrão (h)"
+                    inputProps={{ min: 1 }}
                     value={settings.defaultSla}
                     onChange={(event) => setSettings({ ...settings, defaultSla: Number(event.target.value) })}
                   />
@@ -133,6 +150,7 @@ export function SettingsPage() {
                     fullWidth
                     type="number"
                     label="Alerta atraso (min)"
+                    inputProps={{ min: 1 }}
                     value={settings.alertDelayMinutes}
                     onChange={(event) => setSettings({ ...settings, alertDelayMinutes: Number(event.target.value) })}
                   />
@@ -156,7 +174,7 @@ export function SettingsPage() {
         </Grid>
 
         <Grid item xs={12} lg={5}>
-          <Card>
+          <Card className="soft-card">
             <CardContent>
               <Typography variant="h6" mb={2}>
                 Preferências visuais
@@ -188,7 +206,7 @@ export function SettingsPage() {
         </Grid>
 
         <Grid item xs={12}>
-          <Card>
+          <Card className="soft-card">
             <CardContent>
               <Typography variant="h6" mb={2}>
                 Categorias de ocorrência
@@ -196,7 +214,20 @@ export function SettingsPage() {
               <Grid container spacing={1.5}>
                 {categories.map((category) => (
                   <Grid item xs={12} sm={6} md={4} key={category}>
-                    <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 1.5, fontWeight: 800 }}>
+                    <Box
+                      sx={{
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        borderRadius: 2,
+                        p: 1.5,
+                        fontWeight: 850,
+                        bgcolor: '#fbfefd',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1
+                      }}
+                    >
+                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'primary.main' }} />
                       {category}
                     </Box>
                   </Grid>
@@ -206,6 +237,12 @@ export function SettingsPage() {
           </Card>
         </Grid>
       </Grid>
+
+      <Snackbar open={saved} autoHideDuration={3000} onClose={() => setSaved(false)}>
+        <Alert severity="success" variant="filled" onClose={() => setSaved(false)}>
+          Configurações salvas localmente.
+        </Alert>
+      </Snackbar>
     </Stack>
   );
 }

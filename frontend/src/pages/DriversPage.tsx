@@ -33,22 +33,22 @@ export function DriversPage() {
           label: 'Taxa',
           render: (row) => (
             <Stack direction="row" spacing={1} alignItems="center" minWidth={130}>
-              <Typography variant="body2" fontWeight={800}>
+              <Typography variant="body2" fontWeight={850}>
                 {Number(row.successRate).toFixed(1)}%
               </Typography>
-              <LinearProgress variant="determinate" value={Number(row.successRate)} sx={{ flex: 1, height: 7, borderRadius: 2 }} />
+              <LinearProgress variant="determinate" value={Number(row.successRate)} sx={{ flex: 1, height: 7 }} />
             </Stack>
           )
         }
       ]}
       fields={[
         { key: 'name', label: 'Nome', required: true },
-        { key: 'phone', label: 'Telefone', required: true },
+        { key: 'phone', label: 'Telefone', required: true, mask: 'phone' },
         { key: 'licenseNumber', label: 'CNH', required: true },
         { key: 'status', label: 'Status', type: 'select', options: driverStatusOptions, required: true },
-        { key: 'currentVehicle', label: 'Veículo atual' },
-        { key: 'deliveriesCompleted', label: 'Entregas concluídas', type: 'number' },
-        { key: 'successRate', label: 'Taxa de sucesso (%)', type: 'number' }
+        { key: 'currentVehicle', label: 'Veículo atual', mask: 'plate' },
+        { key: 'deliveriesCompleted', label: 'Entregas concluídas', type: 'number', min: 0 },
+        { key: 'successRate', label: 'Taxa de sucesso (%)', type: 'number', min: 0, max: 100 }
       ]}
       filters={[{ key: 'status', label: 'Status', type: 'select', options: driverStatusOptions }]}
       mapToPayload={(form) => ({

@@ -180,7 +180,7 @@ writeFileSync(
   join(publicDir, 'manifest.webmanifest'),
   JSON.stringify(
     {
-      name: 'LogiTrack - Gestao de Entregas',
+      name: 'LogiTrack - Gestão de Entregas',
       short_name: 'LogiTrack',
       icons: [
         { src: '/android-chrome-192x192.png', sizes: '192x192', type: 'image/png' },
