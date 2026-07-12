@@ -2,6 +2,7 @@ package com.logitrack.service;
 
 import com.logitrack.domain.Incident;
 import com.logitrack.domain.enums.IncidentStatus;
+import com.logitrack.domain.enums.IncidentPriority;
 import com.logitrack.dto.Dtos;
 import com.logitrack.exception.BusinessException;
 import com.logitrack.exception.ResourceNotFoundException;
@@ -20,15 +21,21 @@ public class IncidentService {
     private final IncidentRepository incidentRepository;
     private final DeliveryRepository deliveryRepository;
     private final OrderRepository orderRepository;
+    private final NotificationService notificationService;
+    private final AuditService auditService;
 
     public IncidentService(
             IncidentRepository incidentRepository,
             DeliveryRepository deliveryRepository,
-            OrderRepository orderRepository
+            OrderRepository orderRepository,
+            NotificationService notificationService,
+            AuditService auditService
     ) {
         this.incidentRepository = incidentRepository;
         this.deliveryRepository = deliveryRepository;
         this.orderRepository = orderRepository;
+        this.notificationService = notificationService;
+        this.auditService = auditService;
     }
 
     @Transactional(readOnly = true)
@@ -48,21 +55,47 @@ public class IncidentService {
     @Transactional
     public Dtos.IncidentResponse create(Dtos.IncidentRequest request) {
         var incident = new Incident();
-        apply(incident, request);
-        return DtoMapper.toIncident(incidentRepository.save(incident));
+        apply(incident, request, true);
+        var saved = incidentRepository.save(incident);
+        auditService.record("INCIDENT_CREATED", "INCIDENT", saved.getId(), "Ocorrência " + saved.getType().getLabel() + " registrada.");
+        if (saved.getPriority() == IncidentPriority.CRITICAL) {
+            notificationService.publish("CRITICAL_INCIDENT", "Ocorrência crítica aberta", saved.getType().getLabel()
+                            + " requer tratamento prioritário.", "INCIDENT", saved.getId(),
+                    "/incidents?details=" + saved.getId(), "critical-incident-" + saved.getId());
+        }
+        return DtoMapper.toIncident(saved);
     }
 
     @Transactional
     public Dtos.IncidentResponse update(Long id, Dtos.IncidentRequest request) {
         var incident = findEntity(id);
-        apply(incident, request);
+        if (incident.getStatus() == IncidentStatus.CANCELED) throw new BusinessException("Ocorrência cancelada não pode ser reaberta.");
+        apply(incident, request, false);
+        auditService.record("INCIDENT_UPDATED", "INCIDENT", incident.getId(), "Ocorrência atualizada para " + incident.getStatus().getLabel() + ".");
         return DtoMapper.toIncident(incident);
     }
 
     @Transactional
     public Dtos.IncidentResponse cancel(Long id) {
         var incident = findEntity(id);
+        if (incident.getStatus() == IncidentStatus.CANCELED) return DtoMapper.toIncident(incident);
+        if (incident.getStatus() == IncidentStatus.RESOLVED) throw new BusinessException("Ocorrência resolvida não pode ser cancelada.");
         incident.setStatus(IncidentStatus.CANCELED);
+        auditService.record("INCIDENT_CANCELED", "INCIDENT", incident.getId(), "Ocorrência cancelada.");
+        return DtoMapper.toIncident(incident);
+    }
+
+    @Transactional
+    public Dtos.IncidentResponse resolve(Long id, Dtos.IncidentResolutionRequest request) {
+        var incident = findEntity(id);
+        if (incident.getStatus() == IncidentStatus.CANCELED) throw new BusinessException("Ocorrência cancelada não pode ser resolvida.");
+        if (incident.getStatus() == IncidentStatus.RESOLVED) return DtoMapper.toIncident(incident);
+        incident.setResolution(request.resolution().trim());
+        incident.setStatus(IncidentStatus.RESOLVED);
+        auditService.record("INCIDENT_RESOLVED", "INCIDENT", incident.getId(), "Ocorrência resolvida.");
+        notificationService.publish("INCIDENT_RESOLVED", "Ocorrência resolvida", incident.getType().getLabel()
+                        + " foi concluída pela equipe.", "INCIDENT", incident.getId(),
+                "/incidents?details=" + incident.getId(), "incident-resolved-" + incident.getId());
         return DtoMapper.toIncident(incident);
     }
 
@@ -72,7 +105,7 @@ public class IncidentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Ocorrência não encontrada."));
     }
 
-    private void apply(Incident incident, Dtos.IncidentRequest request) {
+    private void apply(Incident incident, Dtos.IncidentRequest request, boolean creating) {
         if (request.deliveryId() == null && request.orderId() == null) {
             throw new BusinessException("A ocorrência precisa estar vinculada a uma entrega ou pedido.");
         }
@@ -90,9 +123,13 @@ public class IncidentService {
 
         incident.setType(request.type());
         incident.setPriority(request.priority() == null ? incident.getPriority() : request.priority());
-        incident.setStatus(request.status() == null ? IncidentStatus.OPEN : request.status());
-        incident.setResponsible(request.responsible());
-        incident.setDescription(request.description());
-        incident.setResolution(request.resolution());
+        var status = creating ? IncidentStatus.OPEN : (request.status() == null ? incident.getStatus() : request.status());
+        if (status == IncidentStatus.RESOLVED && (request.resolution() == null || request.resolution().isBlank())) {
+            throw new BusinessException("Informe a resolução antes de concluir a ocorrência.");
+        }
+        incident.setStatus(status);
+        incident.setResponsible(request.responsible().trim());
+        incident.setDescription(request.description().trim());
+        incident.setResolution(status == IncidentStatus.RESOLVED ? request.resolution().trim() : null);
     }
 }

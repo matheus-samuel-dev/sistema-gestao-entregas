@@ -1,413 +1,114 @@
 import {
-  AppBar,
-  Avatar,
-  Badge,
-  Box,
-  Button,
-  Divider,
-  Drawer,
-  IconButton,
-  InputAdornment,
-  List,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Menu,
-  MenuItem,
-  Stack,
-  TextField,
-  Toolbar,
-  Tooltip,
-  Typography,
-  useMediaQuery
+  AppBar, Box, Chip, Divider, Drawer, IconButton, List, ListItemButton, ListItemIcon,
+  ListItemText, Stack, Toolbar, Tooltip, Typography, useMediaQuery
 } from '@mui/material';
 import type { Theme } from '@mui/material/styles';
-import AssessmentOutlinedIcon from '@mui/icons-material/AssessmentOutlined';
-import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined';
-import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
-import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
-import DirectionsCarOutlinedIcon from '@mui/icons-material/DirectionsCarOutlined';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
-import LocalShippingOutlinedIcon from '@mui/icons-material/LocalShippingOutlined';
-import MenuIcon from '@mui/icons-material/Menu';
-import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNoneOutlined';
-import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
-import PinDropOutlinedIcon from '@mui/icons-material/PinDropOutlined';
-import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
-import SearchIcon from '@mui/icons-material/Search';
-import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
-import SmsOutlinedIcon from '@mui/icons-material/SmsOutlined';
-import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded';
+import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded';
+import MenuRoundedIcon from '@mui/icons-material/MenuRounded';
+import WifiOffRoundedIcon from '@mui/icons-material/WifiOffRounded';
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { BrandMark } from './BrandMark';
+import { CalendarCenter } from './shell/CalendarCenter';
+import { GlobalSearch } from './shell/GlobalSearch';
+import { MessageCenter } from './shell/MessageCenter';
+import { navigationGroups } from './shell/navigation';
+import { NotificationCenter } from './shell/NotificationCenter';
+import { UserMenu } from './shell/UserMenu';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { tokens } from '../theme/tokens';
 
-const drawerWidth = 260;
+const expandedWidth = 264;
+const collapsedWidth = 84;
+const preferenceKey = 'logitrack.sidebar-collapsed';
 
-const navigation = [
-  { label: 'Dashboard', path: '/', icon: <DashboardOutlinedIcon /> },
-  { label: 'Pedidos', path: '/orders', icon: <Inventory2OutlinedIcon /> },
-  { label: 'Entregas', path: '/deliveries', icon: <LocalShippingOutlinedIcon /> },
-  { label: 'Motoristas', path: '/drivers', icon: <PeopleAltOutlinedIcon /> },
-  { label: 'Veículos', path: '/vehicles', icon: <DirectionsCarOutlinedIcon /> },
-  { label: 'Rotas', path: '/routes', icon: <PinDropOutlinedIcon /> },
-  { label: 'Ocorrências', path: '/incidents', icon: <ReportProblemOutlinedIcon /> },
-  { label: 'Relatórios', path: '/reports', icon: <AssessmentOutlinedIcon /> },
-  { label: 'Configurações', path: '/settings', icon: <SettingsOutlinedIcon /> }
-];
-
-const notifications = [
-  {
-    title: 'Entrega atrasada',
-    description: 'Pedido #10452 passou do SLA planejado.',
-    time: 'há 15 min',
-    color: '#ef4444',
-    icon: <WarningAmberOutlinedIcon fontSize="small" />,
-    path: '/deliveries'
-  },
-  {
-    title: 'Ocorrência crítica',
-    description: 'Produto avariado aguardando tratativa.',
-    time: 'há 35 min',
-    color: '#f59e0b',
-    icon: <ReportProblemOutlinedIcon fontSize="small" />,
-    path: '/incidents'
-  },
-  {
-    title: 'Entrega concluída',
-    description: 'Pedido #10453 finalizado com sucesso.',
-    time: 'há 1 h',
-    color: '#10b981',
-    icon: <CheckCircleOutlinedIcon fontSize="small" />,
-    path: '/reports'
-  }
-];
-
-function pageTitle(pathname: string) {
-  const item = navigation.find((nav) => nav.path === pathname);
-  return item?.label ?? 'Dashboard';
-}
-
-function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
-  const { user, logout } = useAuth();
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-
+function Sidebar({ collapsed, mobile, onNavigate, onToggle }: {
+  collapsed: boolean;
+  mobile?: boolean;
+  onNavigate?: () => void;
+  onToggle: () => void;
+}) {
   return (
-    <Stack height="100%" sx={{ bgcolor: '#003d2f', color: '#effdf5' }}>
-      <Box px={2.5} py={3}>
-        <Stack direction="row" spacing={1.5} alignItems="center">
-          <Box
-            aria-hidden
-            sx={{
-              width: 40,
-              height: 40,
-              borderRadius: 2,
-              display: 'grid',
-              placeItems: 'center',
-              bgcolor: '#10b981',
-              color: '#003d2f',
-              fontWeight: 900,
-              boxShadow: '0 14px 30px rgba(16, 185, 129, 0.25)'
-            }}
-          >
-            LT
+    <Stack height="100%" sx={{ bgcolor: tokens.color.brand[950], color: '#fff', overflowX: 'hidden' }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: collapsed ? 2.1 : 2.25, py: 2.25, minHeight: 82 }}>
+        <BrandMark inverse size={42} showWordmark={!collapsed} compact />
+        {!mobile && !collapsed ? (
+          <Tooltip title="Recolher menu"><IconButton size="small" onClick={onToggle} aria-label="Recolher menu lateral" sx={{ color: 'rgba(255,255,255,.75)' }}><ChevronLeftRoundedIcon /></IconButton></Tooltip>
+        ) : null}
+      </Stack>
+      <Divider sx={{ borderColor: 'rgba(255,255,255,.1)' }} />
+      <List component="nav" aria-label="Navegação principal" sx={{ px: collapsed ? 1.4 : 1.5, py: 1.5, flex: 1, overflowY: 'auto' }}>
+        {navigationGroups.map((group) => (
+          <Box key={group.label} sx={{ mb: 1.35 }}>
+            {!collapsed ? <Typography component="h2" variant="caption" sx={{ display: 'block', px: 1.25, mb: .55, color: 'rgba(255,255,255,.43)', fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase' }}>{group.label}</Typography> : null}
+            {group.items.map((item) => (
+              <Tooltip key={item.path} title={collapsed ? item.label : ''} placement="right">
+                <ListItemButton
+                  component={NavLink}
+                  to={item.path}
+                  end={item.end}
+                  onClick={onNavigate}
+                  sx={{ minHeight: 44, my: .3, px: collapsed ? 1.3 : 1.2, justifyContent: collapsed ? 'center' : 'flex-start', borderRadius: tokens.radius.md, color: 'rgba(255,255,255,.72)', '&.active': { color: '#fff', bgcolor: 'rgba(16,185,129,.2)', boxShadow: 'inset 3px 0 #34d399' }, '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,.075)' } }}
+                >
+                  <ListItemIcon sx={{ minWidth: collapsed ? 0 : 38, color: 'inherit', justifyContent: 'center', '& svg': { fontSize: 21 } }}>{item.icon}</ListItemIcon>
+                  {!collapsed ? <ListItemText primary={item.label} primaryTypographyProps={{ fontSize: '.875rem', fontWeight: 750 }} /> : null}
+                </ListItemButton>
+              </Tooltip>
+            ))}
           </Box>
-          <Box minWidth={0}>
-            <Typography variant="h6" lineHeight={1} color="#fff">
-              LogiTrack
-            </Typography>
-            <Typography variant="caption" color="rgba(255,255,255,0.72)">
-              Gestão de Entregas
-            </Typography>
-          </Box>
-        </Stack>
-      </Box>
-      <List sx={{ px: 1.5, flex: 1 }}>
-        {navigation.map((item) => (
-          <ListItemButton
-            key={item.path}
-            component={NavLink}
-            to={item.path}
-            onClick={onNavigate}
-            sx={{
-              my: 0.35,
-              minHeight: 44,
-              borderRadius: 2,
-              color: 'rgba(255,255,255,0.82)',
-              transition: 'transform 160ms ease, background-color 160ms ease, color 160ms ease',
-              '&.active': {
-                bgcolor: '#008756',
-                color: '#fff',
-                boxShadow: '0 12px 30px rgba(0, 135, 86, 0.28)'
-              },
-              '&:hover': {
-                bgcolor: 'rgba(255,255,255,0.08)',
-                transform: 'translateX(2px)'
-              }
-            }}
-          >
-            <ListItemIcon sx={{ color: 'inherit', minWidth: 38 }}>{item.icon}</ListItemIcon>
-            <ListItemText primary={item.label} primaryTypographyProps={{ fontWeight: 800 }} />
-          </ListItemButton>
         ))}
       </List>
-      <Box px={1.5} pb={2}>
-        <Divider sx={{ borderColor: 'rgba(255,255,255,0.12)', mb: 2 }} />
-        <Button
-          fullWidth
-          onClick={(event) => setAnchorEl(event.currentTarget)}
-          endIcon={<ExpandMoreIcon />}
-          sx={{
-            justifyContent: 'flex-start',
-            color: '#fff',
-            p: 1.2,
-            border: '1px solid rgba(255,255,255,0.12)',
-            bgcolor: 'rgba(255,255,255,0.05)'
-          }}
-        >
-          <Avatar sx={{ width: 34, height: 34, mr: 1.2, bgcolor: '#d1fae5', color: '#003d2f' }}>
-            {user?.name?.slice(0, 1) ?? 'A'}
-          </Avatar>
-          <Box textAlign="left" minWidth={0}>
-            <Typography variant="body2" fontWeight={850} noWrap>
-              {user?.name ?? 'Administrador'}
-            </Typography>
-            <Typography variant="caption" color="rgba(255,255,255,0.65)" noWrap>
-              Administrador
-            </Typography>
-          </Box>
-        </Button>
-        <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
-          <MenuItem onClick={logout}>Sair</MenuItem>
-        </Menu>
+      <Box sx={{ px: collapsed ? 1.4 : 1.5, pb: 1.5 }}>
+        {!mobile && collapsed ? (
+          <Tooltip title="Expandir menu" placement="right"><IconButton onClick={onToggle} aria-label="Expandir menu lateral" sx={{ width: '100%', color: 'rgba(255,255,255,.72)', mb: 1 }}><ChevronRightRoundedIcon /></IconButton></Tooltip>
+        ) : null}
+        <UserMenu sidebar collapsed={collapsed} />
       </Box>
     </Stack>
   );
 }
 
 export function AppLayout() {
+  const desktop = useMediaQuery((theme: Theme) => theme.breakpoints.up('lg'));
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [notificationAnchor, setNotificationAnchor] = useState<null | HTMLElement>(null);
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem(preferenceKey) === 'true');
+  const online = useNetworkStatus();
   const location = useLocation();
-  const isDesktop = useMediaQuery((theme: Theme) => theme.breakpoints.up('lg'));
-  const title = useMemo(() => pageTitle(location.pathname), [location.pathname]);
-  const searchRef = useRef<HTMLInputElement | null>(null);
-  const { user } = useAuth();
-  const today = new Intl.DateTimeFormat('pt-BR', {
-    weekday: 'short',
-    day: '2-digit',
-    month: 'short'
-  }).format(new Date());
+  const width = collapsed ? collapsedWidth : expandedWidth;
 
-  useEffect(() => {
-    function handleShortcut(event: KeyboardEvent) {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        searchRef.current?.focus();
-      }
-    }
-
-    window.addEventListener('keydown', handleShortcut);
-    return () => window.removeEventListener('keydown', handleShortcut);
-  }, []);
+  useEffect(() => { if (!desktop) setMobileOpen(false); }, [desktop, location.pathname]);
+  const toggle = () => setCollapsed((value) => { localStorage.setItem(preferenceKey, String(!value)); return !value; });
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
-      <AppBar
-        position="fixed"
-        elevation={0}
-        className="no-print"
-        sx={{
-          width: { lg: `calc(100% - ${drawerWidth}px)` },
-          ml: { lg: `${drawerWidth}px` },
-          bgcolor: 'rgba(255,255,255,0.94)',
-          color: 'text.primary',
-          borderBottom: '1px solid',
-          borderColor: 'divider',
-          backdropFilter: 'blur(14px)'
-        }}
-      >
-        <Toolbar sx={{ gap: 2, minHeight: 72 }}>
-          <Tooltip title="Abrir menu">
-            <IconButton
-              color="inherit"
-              edge="start"
-              aria-label="Abrir menu lateral"
-              onClick={() => setMobileOpen(true)}
-              sx={{ display: { lg: 'none' } }}
-            >
-              <MenuIcon />
-            </IconButton>
-          </Tooltip>
-          <Box minWidth={0} flexShrink={0}>
-            <Typography variant="h6" lineHeight={1.1}>
-              {title}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" noWrap>
-              Visão geral das operações
-            </Typography>
-          </Box>
-          <TextField
-            inputRef={searchRef}
-            aria-label="Buscar entregas, pedidos ou motoristas"
-            placeholder="Buscar entregas, pedidos, motoristas..."
-            sx={{
-              maxWidth: 460,
-              ml: 'auto',
-              display: { xs: 'none', md: 'block' },
-              '& .MuiOutlinedInput-root': { bgcolor: '#fbfefd' }
-            }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" />
-                </InputAdornment>
-              ),
-              endAdornment: (
-                <InputAdornment position="end">
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ border: '1px solid #dbe5e1', px: 0.8, borderRadius: 1, lineHeight: 1.7 }}
-                  >
-                    Ctrl K
-                  </Typography>
-                </InputAdornment>
-              )
-            }}
-          />
-          <Stack direction="row" spacing={0.5} alignItems="center" className="no-print">
-            <Tooltip title="Notificações">
-              <IconButton aria-label="Abrir notificações" onClick={(event) => setNotificationAnchor(event.currentTarget)}>
-                <Badge badgeContent={notifications.length} color="error">
-                  <NotificationsNoneOutlinedIcon />
-                </Badge>
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Mensagens">
-              <IconButton aria-label="Abrir mensagens">
-                <Badge badgeContent={3} color="error">
-                  <SmsOutlinedIcon />
-                </Badge>
-              </IconButton>
-            </Tooltip>
-            <Button
-              variant="outlined"
-              startIcon={<CalendarTodayOutlinedIcon />}
-              sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
-            >
-              {today}
-            </Button>
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ display: { xs: 'none', sm: 'flex' } }}>
-              <Avatar sx={{ width: 38, height: 38, bgcolor: '#d1fae5', color: '#003d2f' }}>
-                {user?.name?.slice(0, 1) ?? 'A'}
-              </Avatar>
-              <Box sx={{ display: { xs: 'none', xl: 'block' } }}>
-                <Typography variant="body2" fontWeight={850}>
-                  {user?.name ?? 'Administrador'}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Administrador
-                </Typography>
-              </Box>
-            </Stack>
-          </Stack>
+      <Box component="a" href="#main-content" className="skip-link">Pular para o conteúdo</Box>
+      <AppBar position="fixed" elevation={0} className="no-print" sx={{ width: { lg: `calc(100% - ${width}px)` }, ml: { lg: `${width}px` }, bgcolor: 'rgba(255,255,255,.93)', color: 'text.primary', borderBottom: `1px solid ${tokens.color.border}`, backdropFilter: 'blur(16px)', transition: `width ${tokens.motion.standard}, margin ${tokens.motion.standard}` }}>
+        <Toolbar sx={{ minHeight: { xs: 64, sm: 70 }, gap: { xs: .25, sm: .75 }, px: { xs: 1, sm: 2 } }}>
+          <IconButton aria-label="Abrir menu lateral" onClick={() => setMobileOpen(true)} sx={{ display: { lg: 'none' } }}><MenuRoundedIcon /></IconButton>
+          <GlobalSearch />
+          <Box flex={1} />
+          {!online ? <Chip icon={<WifiOffRoundedIcon />} label="Offline" size="small" color="warning" sx={{ display: { xs: 'none', sm: 'flex' } }} /> : null}
+          <NotificationCenter />
+          <MessageCenter />
+          <CalendarCenter />
+          <UserMenu />
         </Toolbar>
       </AppBar>
 
-      <Menu
-        anchorEl={notificationAnchor}
-        open={Boolean(notificationAnchor)}
-        onClose={() => setNotificationAnchor(null)}
-        PaperProps={{ sx: { width: 380, maxWidth: 'calc(100vw - 32px)', mt: 1 } }}
-      >
-        <Box px={2} py={1.5}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Typography variant="subtitle1">Notificações</Typography>
-            <Typography variant="caption" color="text.secondary">
-              {notifications.length} novas
-            </Typography>
-          </Stack>
-        </Box>
-        <Divider />
-        {notifications.map((notification) => (
-          <MenuItem
-            key={notification.title}
-            component={NavLink}
-            to={notification.path}
-            onClick={() => setNotificationAnchor(null)}
-            sx={{ alignItems: 'flex-start', gap: 1.2, py: 1.4, whiteSpace: 'normal' }}
-          >
-            <Box
-              sx={{
-                width: 34,
-                height: 34,
-                borderRadius: 2,
-                display: 'grid',
-                placeItems: 'center',
-                bgcolor: `${notification.color}18`,
-                color: notification.color,
-                flex: '0 0 auto'
-              }}
-            >
-              {notification.icon}
-            </Box>
-            <Box minWidth={0} flex={1}>
-              <Stack direction="row" justifyContent="space-between" gap={1}>
-                <Typography variant="body2" fontWeight={850}>
-                  {notification.title}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" flexShrink={0}>
-                  {notification.time}
-                </Typography>
-              </Stack>
-              <Typography variant="caption" color="text.secondary">
-                {notification.description}
-              </Typography>
-            </Box>
-          </MenuItem>
-        ))}
-        <Divider />
-        <Box p={1}>
-          <Button fullWidth size="small" component={NavLink} to="/incidents" onClick={() => setNotificationAnchor(null)}>
-            Ver central operacional
-          </Button>
-        </Box>
-      </Menu>
-
-      <Box component="nav" className="no-print" sx={{ width: { lg: drawerWidth }, flexShrink: { lg: 0 } }}>
-        {isDesktop ? (
-          <Drawer
-            variant="permanent"
-            open
-            PaperProps={{ sx: { width: drawerWidth, border: 0, bgcolor: '#003d2f' } }}
-          >
-            <SidebarContent />
+      <Box component="nav" aria-label="Menu lateral" className="no-print" sx={{ width: { lg: width }, flexShrink: { lg: 0 }, transition: `width ${tokens.motion.standard}` }}>
+        {desktop ? (
+          <Drawer variant="permanent" open PaperProps={{ sx: { width, border: 0, transition: `width ${tokens.motion.standard}` } }}>
+            <Sidebar collapsed={collapsed} onToggle={toggle} />
           </Drawer>
         ) : (
-          <Drawer
-            variant="temporary"
-            open={mobileOpen}
-            onClose={() => setMobileOpen(false)}
-            ModalProps={{ keepMounted: true }}
-            PaperProps={{ sx: { width: drawerWidth, border: 0, bgcolor: '#003d2f' } }}
-          >
-            <SidebarContent onNavigate={() => setMobileOpen(false)} />
+          <Drawer variant="temporary" open={mobileOpen} onClose={() => setMobileOpen(false)} ModalProps={{ keepMounted: true }} PaperProps={{ sx: { width: 280, border: 0 } }}>
+            <Sidebar collapsed={false} mobile onToggle={() => undefined} onNavigate={() => setMobileOpen(false)} />
           </Drawer>
         )}
       </Box>
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          minWidth: 0,
-          width: { lg: `calc(100% - ${drawerWidth}px)` },
-          pt: { xs: 10, lg: 11 },
-          px: { xs: 2, md: 3 },
-          pb: 4
-        }}
-      >
+
+      <Box component="main" id="main-content" tabIndex={-1} sx={{ flexGrow: 1, minWidth: 0, overflowX: 'hidden', width: { lg: `calc(100% - ${width}px)` }, pt: { xs: 9.5, sm: 11 }, px: { xs: 1.5, sm: 2.5, xl: 3 }, pb: 4, transition: `width ${tokens.motion.standard}` }}>
         <Outlet />
       </Box>
     </Box>

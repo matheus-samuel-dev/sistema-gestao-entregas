@@ -54,6 +54,12 @@ public class DeliveryController {
         return deliveryService.markDelivered(id);
     }
 
+    @PutMapping("/{id}/reschedule")
+    public Dtos.DeliveryResponse reschedule(@PathVariable Long id,
+                                            @Valid @RequestBody Dtos.RescheduleRequest request) {
+        return deliveryService.reschedule(id, request);
+    }
+
     @DeleteMapping("/{id}")
     public Dtos.DeliveryResponse cancel(@PathVariable Long id) {
         return deliveryService.cancel(id);

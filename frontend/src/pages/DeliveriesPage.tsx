@@ -34,15 +34,17 @@ import ClearIcon from '@mui/icons-material/Clear';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import EventNoteOutlinedIcon from '@mui/icons-material/EventNoteOutlined';
 import FilterAltOffOutlinedIcon from '@mui/icons-material/FilterAltOffOutlined';
-import RefreshIcon from '@mui/icons-material/Refresh';
 import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
+import ScheduleOutlinedIcon from '@mui/icons-material/ScheduleOutlined';
 import SearchIcon from '@mui/icons-material/Search';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { api, getErrorMessage } from '../api/client';
 import type { Delivery, Driver, Order, RoutePlan, Vehicle } from '../api/types';
 import { EmptyState, TableSkeleton } from '../components/DataState';
-import { clampPercent, formatDateTime, fromDateTimeInput, toDateTimeInput } from '../components/format';
+import { ConfirmActionDialog } from '../components/data/ConfirmActionDialog';
+import { PageHeader, SyncStatus } from '../components/data/PageHeader';
+import { formatDateTime, fromDateTimeInput, toDateTimeInput } from '../components/format';
 import { deliveryStatusOptions, incidentPriorityOptions, incidentTypeOptions } from '../components/status';
 import { StatusBadge } from '../components/StatusBadge';
 
@@ -54,9 +56,12 @@ type DeliveryForm = {
   origin: string;
   destination: string;
   expectedAt: string;
-  status: string;
-  progress: number | string;
 };
+
+type PendingAction = {
+  type: 'deliver' | 'cancel';
+  delivery: Delivery;
+} | null;
 
 type IncidentForm = {
   type: string;
@@ -72,9 +77,7 @@ const emptyDeliveryForm: DeliveryForm = {
   routeId: '',
   origin: 'CD LogiTrack - Vila Leopoldina',
   destination: '',
-  expectedAt: toDateTimeInput(),
-  status: 'IN_PROGRESS',
-  progress: 10
+  expectedAt: toDateTimeInput()
 };
 
 const emptyIncidentForm: IncidentForm = {
@@ -98,6 +101,10 @@ export function DeliveriesPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState<Delivery | null>(null);
   const [incidentDelivery, setIncidentDelivery] = useState<Delivery | null>(null);
+  const [pendingAction, setPendingAction] = useState<PendingAction>(null);
+  const [rescheduleDelivery, setRescheduleDelivery] = useState<Delivery | null>(null);
+  const [rescheduleAt, setRescheduleAt] = useState('');
+  const [rescheduleError, setRescheduleError] = useState('');
   const [editing, setEditing] = useState<Delivery | null>(null);
   const [form, setForm] = useState<DeliveryForm>(emptyDeliveryForm);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -158,6 +165,19 @@ export function DeliveriesPage() {
     [filteredDeliveries, page, rowsPerPage]
   );
 
+  const selectableDrivers = useMemo(
+    () => drivers.filter((driver) => driver.status === 'AVAILABLE' || driver.id === editing?.driverId),
+    [drivers, editing]
+  );
+  const selectableVehicles = useMemo(
+    () => vehicles.filter((vehicle) => vehicle.status === 'AVAILABLE' || vehicle.id === editing?.vehicleId),
+    [vehicles, editing]
+  );
+  const selectableRoutes = useMemo(
+    () => routes.filter((route) => route.status === 'ACTIVE' || route.id === editing?.routeId),
+    [routes, editing]
+  );
+
   function resetPaging() {
     setPage(0);
   }
@@ -185,9 +205,7 @@ export function DeliveriesPage() {
       routeId: delivery.routeId ? String(delivery.routeId) : '',
       origin: delivery.origin,
       destination: delivery.destination,
-      expectedAt: toDateTimeInput(delivery.expectedAt),
-      status: delivery.status,
-      progress: delivery.progress
+      expectedAt: toDateTimeInput(delivery.expectedAt)
     });
     setFormErrors({});
     setFormError('');
@@ -209,8 +227,7 @@ export function DeliveriesPage() {
       ['vehicleId', 'Veículo'],
       ['origin', 'Origem'],
       ['destination', 'Destino'],
-      ['expectedAt', 'Previsão'],
-      ['status', 'Status']
+      ['expectedAt', 'Previsão']
     ];
 
     required.forEach(([key, label]) => {
@@ -218,11 +235,6 @@ export function DeliveriesPage() {
         nextErrors[key] = `${label} é obrigatório.`;
       }
     });
-
-    const progress = Number(form.progress);
-    if (!Number.isFinite(progress) || progress < 0 || progress > 100) {
-      nextErrors.progress = 'Informe um progresso entre 0 e 100.';
-    }
 
     setFormErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -244,9 +256,7 @@ export function DeliveriesPage() {
       routeId: form.routeId ? Number(form.routeId) : null,
       origin: form.origin,
       destination: form.destination,
-      expectedAt: fromDateTimeInput(form.expectedAt),
-      status: form.status,
-      progress: clampPercent(Number(form.progress))
+      expectedAt: fromDateTimeInput(form.expectedAt)
     };
 
     setSavingDelivery(true);
@@ -272,6 +282,7 @@ export function DeliveriesPage() {
     try {
       await api.post(`/deliveries/${delivery.id}/mark-delivered`);
       setMessage('Entrega marcada como entregue.');
+      setPendingAction(null);
       load();
     } catch (err) {
       setError(getErrorMessage(err));
@@ -285,9 +296,41 @@ export function DeliveriesPage() {
     try {
       await api.delete(`/deliveries/${delivery.id}`);
       setMessage('Entrega cancelada.');
+      setPendingAction(null);
       load();
     } catch (err) {
       setError(getErrorMessage(err));
+    } finally {
+      setRowActionId(null);
+    }
+  }
+
+  function openReschedule(delivery: Delivery) {
+    setRescheduleDelivery(delivery);
+    setRescheduleAt(toDateTimeInput(delivery.expectedAt));
+    setRescheduleError('');
+  }
+
+  async function submitReschedule(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!rescheduleDelivery) return;
+
+    if (isBlank(rescheduleAt) || new Date(rescheduleAt).getTime() <= Date.now()) {
+      setRescheduleError('Informe uma nova previsão futura.');
+      return;
+    }
+
+    setRowActionId(rescheduleDelivery.id);
+    setRescheduleError('');
+    try {
+      await api.put(`/deliveries/${rescheduleDelivery.id}/reschedule`, {
+        expectedAt: fromDateTimeInput(rescheduleAt)
+      });
+      setMessage('Entrega reagendada com sucesso.');
+      setRescheduleDelivery(null);
+      load();
+    } catch (err) {
+      setRescheduleError(getErrorMessage(err));
     } finally {
       setRowActionId(null);
     }
@@ -328,6 +371,7 @@ export function DeliveriesPage() {
 
   function deliveryActions(delivery: Delivery, compact = false) {
     const busy = rowActionId === delivery.id;
+    const terminal = delivery.status === 'DELIVERED' || delivery.status === 'CANCELED';
     return (
       <Stack direction="row" spacing={0.5} justifyContent={compact ? 'flex-start' : 'flex-end'} flexWrap="wrap" useFlexGap>
         <Tooltip title="Detalhes">
@@ -335,38 +379,50 @@ export function DeliveriesPage() {
             <VisibilityOutlinedIcon fontSize="small" />
           </IconButton>
         </Tooltip>
-        <Tooltip title="Editar">
-          <IconButton aria-label={`Editar ${delivery.orderNumber}`} onClick={() => openEdit(delivery)} size="small">
-            <EditOutlinedIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
+        {!terminal ? (
+          <Tooltip title="Editar alocação">
+            <IconButton aria-label={`Editar ${delivery.orderNumber}`} onClick={() => openEdit(delivery)} size="small">
+              <EditOutlinedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        ) : null}
         <Tooltip title="Registrar ocorrência">
           <IconButton aria-label={`Registrar ocorrência ${delivery.orderNumber}`} onClick={() => setIncidentDelivery(delivery)} size="small">
             <ReportProblemOutlinedIcon fontSize="small" />
           </IconButton>
         </Tooltip>
-        <Tooltip title="Marcar como entregue">
+        {!terminal ? <Tooltip title="Reagendar previsão">
+          <IconButton
+            aria-label={`Reagendar ${delivery.orderNumber}`}
+            onClick={() => openReschedule(delivery)}
+            disabled={busy}
+            size="small"
+          >
+            <ScheduleOutlinedIcon fontSize="small" />
+          </IconButton>
+        </Tooltip> : null}
+        {!terminal ? <Tooltip title="Confirmar entrega">
           <IconButton
             aria-label={`Marcar ${delivery.orderNumber} como entregue`}
             color="success"
-            onClick={() => markDelivered(delivery)}
+            onClick={() => setPendingAction({ type: 'deliver', delivery })}
             disabled={busy}
             size="small"
           >
             {busy ? <CircularProgress color="inherit" size={16} /> : <CheckCircleOutlineIcon fontSize="small" />}
           </IconButton>
-        </Tooltip>
-        <Tooltip title="Cancelar entrega">
+        </Tooltip> : null}
+        {!terminal ? <Tooltip title="Cancelar entrega">
           <IconButton
             aria-label={`Cancelar entrega ${delivery.orderNumber}`}
             color="error"
-            onClick={() => cancelDelivery(delivery)}
+            onClick={() => setPendingAction({ type: 'cancel', delivery })}
             disabled={busy}
             size="small"
           >
             <EventNoteOutlinedIcon fontSize="small" />
           </IconButton>
-        </Tooltip>
+        </Tooltip> : null}
       </Stack>
     );
   }
@@ -424,24 +480,17 @@ export function DeliveriesPage() {
 
   return (
     <Stack spacing={2.5} className="page-enter">
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} justifyContent="space-between" alignItems={{ md: 'center' }}>
-        <Box>
-          <Typography variant="h5">Entregas</Typography>
-          <Typography color="text.secondary">
-            Atribua motoristas, veículos, rotas, acompanhe progresso e registre ocorrências.
-          </Typography>
-        </Box>
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          <Tooltip title="Atualizar dados">
-            <IconButton aria-label="Atualizar entregas" onClick={load} disabled={loading}>
-              <RefreshIcon />
-            </IconButton>
-          </Tooltip>
+      <PageHeader
+        eyebrow="Operação"
+        title="Entregas"
+        description="Aloque recursos disponíveis, acompanhe o progresso calculado pela operação e trate ocorrências."
+        meta={<SyncStatus syncing={loading} label={`${deliveries.length} entregas sincronizadas`} />}
+        primaryAction={
           <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
-            Nova entrega
+            Criar entrega
           </Button>
-        </Stack>
-      </Stack>
+        }
+      />
 
       <Card className="soft-card">
         <CardContent>
@@ -514,7 +563,7 @@ export function DeliveriesPage() {
         <EmptyState
           title="Nenhuma entrega encontrada"
           description="Ajuste os filtros aplicados ou crie uma nova entrega para acompanhar a operação."
-          actionLabel="Nova entrega"
+          actionLabel="Criar entrega"
           onAction={openCreate}
         />
       ) : isMobile ? (
@@ -597,7 +646,7 @@ export function DeliveriesPage() {
 
       <Dialog open={formOpen} onClose={() => (savingDelivery ? undefined : setFormOpen(false))} maxWidth="md" fullWidth>
         <Box component="form" onSubmit={submitDelivery}>
-          <DialogTitle>{editing ? 'Editar entrega' : 'Nova entrega'}</DialogTitle>
+          <DialogTitle>{editing ? 'Editar alocação da entrega' : 'Criar entrega'}</DialogTitle>
           <DialogContent dividers>
             <Stack spacing={2} pt={0.5}>
               {formError ? <Alert severity="error">{formError}</Alert> : null}
@@ -632,7 +681,7 @@ export function DeliveriesPage() {
                     helperText={formErrors.driverId || ' '}
                     onChange={(event) => updateForm('driverId', event.target.value)}
                   >
-                    {drivers.map((driver) => (
+                    {selectableDrivers.map((driver) => (
                       <MenuItem key={driver.id} value={driver.id}>
                         {driver.name} ({driver.statusLabel})
                       </MenuItem>
@@ -650,7 +699,7 @@ export function DeliveriesPage() {
                     helperText={formErrors.vehicleId || ' '}
                     onChange={(event) => updateForm('vehicleId', event.target.value)}
                   >
-                    {vehicles.map((vehicle) => (
+                    {selectableVehicles.map((vehicle) => (
                       <MenuItem key={vehicle.id} value={vehicle.id}>
                         {vehicle.plate} - {vehicle.model} ({vehicle.statusLabel})
                       </MenuItem>
@@ -667,7 +716,7 @@ export function DeliveriesPage() {
                     onChange={(event) => updateForm('routeId', event.target.value)}
                   >
                     <MenuItem value="">Sem rota</MenuItem>
-                    {routes.map((route) => (
+                    {selectableRoutes.map((route) => (
                       <MenuItem key={route.id} value={route.id}>
                         {route.name}
                       </MenuItem>
@@ -696,7 +745,7 @@ export function DeliveriesPage() {
                     onChange={(event) => updateForm('destination', event.target.value)}
                   />
                 </Grid>
-                <Grid item xs={12} sm={4}>
+                <Grid item xs={12}>
                   <TextField
                     fullWidth
                     required
@@ -707,37 +756,6 @@ export function DeliveriesPage() {
                     error={Boolean(formErrors.expectedAt)}
                     helperText={formErrors.expectedAt || ' '}
                     onChange={(event) => updateForm('expectedAt', event.target.value)}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={4}>
-                  <TextField
-                    select
-                    fullWidth
-                    required
-                    label="Status"
-                    value={form.status}
-                    error={Boolean(formErrors.status)}
-                    helperText={formErrors.status || ' '}
-                    onChange={(event) => updateForm('status', event.target.value)}
-                  >
-                    {deliveryStatusOptions.map((option) => (
-                      <MenuItem key={option.value} value={option.value}>
-                        {option.label}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                </Grid>
-                <Grid item xs={12} sm={4}>
-                  <TextField
-                    fullWidth
-                    required
-                    type="number"
-                    label="Progresso (%)"
-                    inputProps={{ min: 0, max: 100 }}
-                    value={form.progress}
-                    error={Boolean(formErrors.progress)}
-                    helperText={formErrors.progress || ' '}
-                    onChange={(event) => updateForm('progress', event.target.value)}
                   />
                 </Grid>
               </Grid>
@@ -753,7 +771,71 @@ export function DeliveriesPage() {
               disabled={savingDelivery}
               startIcon={savingDelivery ? <CircularProgress color="inherit" size={16} /> : undefined}
             >
-              {savingDelivery ? 'Salvando...' : 'Salvar'}
+              {savingDelivery ? 'Salvando...' : editing ? 'Salvar alterações' : 'Criar entrega'}
+            </Button>
+          </DialogActions>
+        </Box>
+      </Dialog>
+
+      <ConfirmActionDialog
+        open={Boolean(pendingAction)}
+        title={pendingAction?.type === 'deliver' ? 'Confirmar conclusão da entrega' : 'Cancelar entrega'}
+        description={
+          pendingAction?.type === 'deliver'
+            ? `${pendingAction.delivery.orderNumber} será concluída e os recursos alocados ficarão disponíveis novamente.`
+            : `${pendingAction?.delivery.orderNumber ?? 'Esta entrega'} será retirada da operação e seus recursos serão liberados.`
+        }
+        confirmLabel={pendingAction?.type === 'deliver' ? 'Confirmar entrega' : 'Cancelar entrega'}
+        severity={pendingAction?.type === 'cancel' ? 'error' : 'info'}
+        loading={Boolean(pendingAction && rowActionId === pendingAction.delivery.id)}
+        onClose={() => setPendingAction(null)}
+        onConfirm={() => {
+          if (!pendingAction) return;
+          if (pendingAction.type === 'deliver') void markDelivered(pendingAction.delivery);
+          else void cancelDelivery(pendingAction.delivery);
+        }}
+      />
+
+      <Dialog
+        open={Boolean(rescheduleDelivery)}
+        onClose={() => (rowActionId ? undefined : setRescheduleDelivery(null))}
+        maxWidth="xs"
+        fullWidth
+      >
+        <Box component="form" onSubmit={submitReschedule}>
+          <DialogTitle>Reagendar entrega</DialogTitle>
+          <DialogContent dividers>
+            <Stack spacing={2} pt={0.5}>
+              {rescheduleError ? <Alert severity="error">{rescheduleError}</Alert> : null}
+              <Alert severity="info" icon={false}>
+                {rescheduleDelivery?.orderNumber} · {rescheduleDelivery?.customerName}
+              </Alert>
+              <TextField
+                fullWidth
+                required
+                autoFocus
+                type="datetime-local"
+                label="Nova previsão"
+                InputLabelProps={{ shrink: true }}
+                value={rescheduleAt}
+                onChange={(event) => {
+                  setRescheduleAt(event.target.value);
+                  setRescheduleError('');
+                }}
+              />
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setRescheduleDelivery(null)} disabled={Boolean(rowActionId)}>
+              Voltar
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={Boolean(rowActionId)}
+              startIcon={rowActionId ? <CircularProgress color="inherit" size={16} /> : undefined}
+            >
+              {rowActionId ? 'Reagendando...' : 'Confirmar reagendamento'}
             </Button>
           </DialogActions>
         </Box>

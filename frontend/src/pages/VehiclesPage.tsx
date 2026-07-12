@@ -3,12 +3,15 @@ import type { Driver, Vehicle } from '../api/types';
 import { api } from '../api/client';
 import { CrudPage } from '../components/CrudPage';
 import type { Option } from '../components/CrudPage';
-import { formatCurrency } from '../components/format';
 import { vehicleStatusOptions } from '../components/status';
 import { StatusBadge } from '../components/StatusBadge';
 
 export function VehiclesPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  const editableStatusOptions = vehicleStatusOptions.map((option) => ({
+    ...option,
+    disabled: option.value === 'ON_ROUTE'
+  }));
 
   useEffect(() => {
     api
@@ -20,7 +23,7 @@ export function VehiclesPage() {
   const driverOptions = useMemo<Option[]>(
     () => [
       { value: '', label: 'Sem motorista' },
-      ...drivers.map((driver) => ({ value: driver.id, label: `${driver.name} (${driver.statusLabel})` }))
+      ...drivers.filter((driver) => driver.status === 'AVAILABLE' || driver.status === 'UNAVAILABLE').map((driver) => ({ value: driver.id, label: `${driver.name} (${driver.statusLabel})` }))
     ],
     [drivers]
   );
@@ -32,6 +35,10 @@ export function VehiclesPage() {
       endpoint="/vehicles"
       noun="Veículo"
       searchPlaceholder="Buscar por placa ou modelo"
+      createLabel="Adicionar veículo"
+      saveLabel="Salvar veículo"
+      updateLabel="Salvar veículo"
+      confirmDescription="O veículo será inativado, sem apagar entregas, custos ou vínculos históricos."
       initialValues={{
         plate: '',
         model: '',
@@ -45,13 +52,13 @@ export function VehiclesPage() {
         { key: 'capacityKg', label: 'Capacidade', render: (row) => `${Number(row.capacityKg).toLocaleString('pt-BR')} kg` },
         { key: 'status', label: 'Status', render: (row) => <StatusBadge status={row.status} label={row.statusLabel} /> },
         { key: 'linkedDriverName', label: 'Motorista', render: (row) => row.linkedDriverName || '-' },
-        { key: 'id', label: 'Patrimônio', render: (row) => formatCurrency(row.id * 1520) }
+        { key: 'id', label: 'Código interno', render: (row) => `FRT-${String(row.id).padStart(4, '0')}` }
       ]}
       fields={[
         { key: 'plate', label: 'Placa', required: true, mask: 'plate' },
         { key: 'model', label: 'Modelo', required: true },
         { key: 'capacityKg', label: 'Capacidade (kg)', type: 'number', required: true, min: 1 },
-        { key: 'status', label: 'Status', type: 'select', options: vehicleStatusOptions, required: true },
+        { key: 'status', label: 'Status', type: 'select', options: editableStatusOptions, required: true },
         { key: 'linkedDriverId', label: 'Motorista vinculado', type: 'select', options: driverOptions }
       ]}
       filters={[{ key: 'status', label: 'Status', type: 'select', options: vehicleStatusOptions }]}

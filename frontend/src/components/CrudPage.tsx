@@ -32,18 +32,22 @@ import ClearIcon from '@mui/icons-material/Clear';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import FilterAltOffOutlinedIcon from '@mui/icons-material/FilterAltOffOutlined';
-import RefreshIcon from '@mui/icons-material/Refresh';
 import SearchIcon from '@mui/icons-material/Search';
-import { FormEvent, ReactNode, useEffect, useMemo, useState } from 'react';
+import { FormEvent, ReactNode, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '../api/client';
 import { maskCnpj, maskPhone, normalizePlate, normalizeState } from './format';
 import { EmptyState, TableSkeleton } from './DataState';
+import { ConfirmActionDialog } from './data/ConfirmActionDialog';
+import { PageHeader, SyncStatus } from './data/PageHeader';
+import { formatLastSync, useApiCollection } from '../hooks/useApiCollection';
 
 type Row = Record<string, any>;
 
 export interface Option {
   value: string | number;
   label: string;
+  disabled?: boolean;
 }
 
 export interface ColumnConfig<T extends Row> {
@@ -63,6 +67,8 @@ export interface FieldConfig {
   mask?: 'phone' | 'cnpj' | 'state' | 'plate';
   min?: number;
   max?: number;
+  when?: 'create' | 'edit';
+  visibleWhen?: (form: Row, editing: boolean) => boolean;
 }
 
 export interface FilterConfig {
@@ -86,6 +92,10 @@ interface CrudPageProps<T extends Row> {
   mapToPayload?: (form: Row) => Row;
   filterFn?: (row: T, search: string, filters: Row) => boolean;
   deleteLabel?: string;
+  createLabel?: string;
+  saveLabel?: string;
+  updateLabel?: string;
+  confirmDescription?: string;
 }
 
 function valueAt(row: Row, key: string) {
@@ -125,10 +135,16 @@ export function CrudPage<T extends Row>({
   mapToForm,
   mapToPayload,
   filterFn,
-  deleteLabel = 'Cancelar'
+  deleteLabel = 'Cancelar',
+  createLabel = `Adicionar ${noun.toLowerCase()}`,
+  saveLabel = `Salvar ${noun.toLowerCase()}`,
+  updateLabel = `Salvar ${noun.toLowerCase()}`,
+  confirmDescription = `Confirme a ação sobre este ${noun.toLowerCase()}.`
 }: CrudPageProps<T>) {
-  const [rows, setRows] = useState<T[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const collectionQuery = useApiCollection<T>({ queryKey: ['collection', endpoint], endpoint });
+  const rows = collectionQuery.data ?? [];
+  const loading = collectionQuery.isLoading;
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<T | null>(null);
   const [form, setForm] = useState<Row>(initialValues);
@@ -136,6 +152,7 @@ export function CrudPage<T extends Row>({
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
   const [rowActionId, setRowActionId] = useState<number | string | null>(null);
+  const [pendingRemove, setPendingRemove] = useState<T | null>(null);
   const [search, setSearch] = useState('');
   const [filterValues, setFilterValues] = useState<Row>({});
   const [page, setPage] = useState(0);
@@ -143,19 +160,10 @@ export function CrudPage<T extends Row>({
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const isMobile = useMediaQuery((theme: Theme) => theme.breakpoints.down('md'));
-
-  function load() {
-    setLoading(true);
-    api
-      .get<T[]>(endpoint)
-      .then((response) => setRows(response.data))
-      .catch((err) => setError(getErrorMessage(err)))
-      .finally(() => setLoading(false));
-  }
-
-  useEffect(() => {
-    load();
-  }, [endpoint]);
+  const visibleFields = fields.filter((field) =>
+    (!field.when || (field.when === 'edit' ? Boolean(editing) : !editing))
+    && (!field.visibleWhen || field.visibleWhen(form, Boolean(editing)))
+  );
 
   const filteredRows = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -211,7 +219,7 @@ export function CrudPage<T extends Row>({
   function validateForm() {
     const nextErrors: Record<string, string> = {};
 
-    fields.forEach((field) => {
+    visibleFields.forEach((field) => {
       const value = form[field.key];
       if (field.required && isBlank(value)) {
         nextErrors[field.key] = `${field.label} é obrigatório.`;
@@ -258,7 +266,7 @@ export function CrudPage<T extends Row>({
         setMessage(`${noun} criado com sucesso.`);
       }
       setDialogOpen(false);
-      load();
+      await queryClient.invalidateQueries({ queryKey: ['collection', endpoint] });
     } catch (err) {
       setFormError(getErrorMessage(err));
     } finally {
@@ -271,7 +279,8 @@ export function CrudPage<T extends Row>({
     try {
       await api.delete(`${endpoint}/${row.id}`);
       setMessage(`${noun} atualizado com sucesso.`);
-      load();
+      setPendingRemove(null);
+      await queryClient.invalidateQueries({ queryKey: ['collection', endpoint] });
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -306,7 +315,7 @@ export function CrudPage<T extends Row>({
       return (
         <TextField {...common} select>
           {(field.options ?? []).map((option) => (
-            <MenuItem key={option.value} value={option.value}>
+            <MenuItem key={option.value} value={option.value} disabled={option.disabled}>
               {option.label}
             </MenuItem>
           ))}
@@ -331,28 +340,15 @@ export function CrudPage<T extends Row>({
     );
   }
 
-  const pageHeader = (
-    <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} justifyContent="space-between" alignItems={{ md: 'center' }}>
-      <Box>
-        <Typography variant="h5">{title}</Typography>
-        <Typography color="text.secondary">{subtitle}</Typography>
-      </Box>
-      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-        <Tooltip title="Atualizar dados">
-          <IconButton aria-label={`Atualizar ${title}`} onClick={load} disabled={loading}>
-            <RefreshIcon />
-          </IconButton>
-        </Tooltip>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
-          Novo {noun.toLowerCase()}
-        </Button>
-      </Stack>
-    </Stack>
-  );
+  const pageHeader = <PageHeader title={title} description={subtitle}
+    meta={<SyncStatus syncing={collectionQuery.isFetching} label={formatLastSync(collectionQuery.dataUpdatedAt)} />}
+    primaryAction={<Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>{createLabel}</Button>} />;
 
   return (
     <Stack spacing={2.5} className="page-enter">
       {pageHeader}
+
+      {collectionQuery.isError ? <Alert severity="error" action={<Button color="inherit" size="small" onClick={() => collectionQuery.refetch()}>Tentar novamente</Button>}>{getErrorMessage(collectionQuery.error)}</Alert> : null}
 
       <Card className="soft-card">
         <CardContent>
@@ -401,7 +397,7 @@ export function CrudPage<T extends Row>({
                 >
                   {filter.type === 'select' ? <MenuItem value="">Todos</MenuItem> : null}
                   {(filter.options ?? []).map((option) => (
-                    <MenuItem key={option.value} value={option.value}>
+                    <MenuItem key={option.value} value={option.value} disabled={option.disabled}>
                       {option.label}
                     </MenuItem>
                   ))}
@@ -429,7 +425,7 @@ export function CrudPage<T extends Row>({
         <EmptyState
           title={`Nenhum ${noun.toLowerCase()} encontrado`}
           description="Ajuste os filtros aplicados ou cadastre um novo item para continuar a operação."
-          actionLabel={`Novo ${noun.toLowerCase()}`}
+          actionLabel={createLabel}
           onAction={openCreate}
         />
       ) : isMobile ? (
@@ -464,7 +460,7 @@ export function CrudPage<T extends Row>({
                       size="small"
                       color="error"
                       startIcon={rowActionId === row.id ? <CircularProgress color="inherit" size={14} /> : <DeleteOutlineIcon />}
-                      onClick={() => remove(row)}
+                      onClick={() => setPendingRemove(row)}
                       disabled={rowActionId === row.id}
                     >
                       {deleteLabel}
@@ -522,7 +518,7 @@ export function CrudPage<T extends Row>({
                           <IconButton
                             aria-label={`${deleteLabel} ${noun} ${row.id}`}
                             color="error"
-                            onClick={() => remove(row)}
+                            onClick={() => setPendingRemove(row)}
                             disabled={rowActionId === row.id}
                             size="small"
                           >
@@ -555,12 +551,12 @@ export function CrudPage<T extends Row>({
 
       <Dialog open={dialogOpen} onClose={() => (saving ? undefined : setDialogOpen(false))} fullWidth maxWidth="md">
         <Box component="form" onSubmit={submit}>
-          <DialogTitle>{editing ? `Editar ${noun.toLowerCase()}` : `Novo ${noun.toLowerCase()}`}</DialogTitle>
+          <DialogTitle>{editing ? `Editar ${noun.toLowerCase()}` : createLabel}</DialogTitle>
           <DialogContent dividers>
             <Stack spacing={2} pt={0.5}>
               {formError ? <Alert severity="error">{formError}</Alert> : null}
               <Grid container spacing={2}>
-                {fields.map((field, index) => (
+                {visibleFields.map((field, index) => (
                   <Grid item xs={12} sm={field.xs ?? 6} key={field.key}>
                     {renderField(field, index)}
                   </Grid>
@@ -578,7 +574,7 @@ export function CrudPage<T extends Row>({
               disabled={saving}
               startIcon={saving ? <CircularProgress color="inherit" size={16} /> : undefined}
             >
-              {saving ? 'Salvando...' : 'Salvar'}
+              {saving ? 'Salvando...' : editing ? updateLabel : saveLabel}
             </Button>
           </DialogActions>
         </Box>
@@ -594,6 +590,16 @@ export function CrudPage<T extends Row>({
           {error}
         </Alert>
       </Snackbar>
+      <ConfirmActionDialog
+        open={Boolean(pendingRemove)}
+        title={`${deleteLabel} ${noun.toLowerCase()}?`}
+        description={confirmDescription}
+        confirmLabel={`${deleteLabel} ${noun.toLowerCase()}`}
+        severity="error"
+        loading={pendingRemove ? rowActionId === pendingRemove.id : false}
+        onClose={() => setPendingRemove(null)}
+        onConfirm={() => { if (pendingRemove) void remove(pendingRemove); }}
+      />
     </Stack>
   );
 }

@@ -22,10 +22,14 @@ function createCanvas(size) {
 function setPixel(data, size, x, y, color) {
   if (x < 0 || y < 0 || x >= size || y >= size) return;
   const index = (Math.floor(y) * size + Math.floor(x)) * 4;
-  data[index] = color[0];
-  data[index + 1] = color[1];
-  data[index + 2] = color[2];
-  data[index + 3] = color[3];
+  const sourceAlpha = color[3] / 255;
+  const destinationAlpha = data[index + 3] / 255;
+  const outputAlpha = sourceAlpha + destinationAlpha * (1 - sourceAlpha);
+  if (outputAlpha === 0) return;
+  data[index] = Math.round((color[0] * sourceAlpha + data[index] * destinationAlpha * (1 - sourceAlpha)) / outputAlpha);
+  data[index + 1] = Math.round((color[1] * sourceAlpha + data[index + 1] * destinationAlpha * (1 - sourceAlpha)) / outputAlpha);
+  data[index + 2] = Math.round((color[2] * sourceAlpha + data[index + 2] * destinationAlpha * (1 - sourceAlpha)) / outputAlpha);
+  data[index + 3] = Math.round(outputAlpha * 255);
 }
 
 function fillRect(data, size, x, y, width, height, color) {
@@ -49,6 +53,36 @@ function fillCircle(data, size, cx, cy, radius, color) {
   }
 }
 
+function fillRoundedRect(data, size, x, y, width, height, radius, color) {
+  fillRect(data, size, x + radius, y, width - radius * 2, height, color);
+  fillRect(data, size, x, y + radius, width, height - radius * 2, color);
+  fillCircle(data, size, x + radius, y + radius, radius, color);
+  fillCircle(data, size, x + width - radius, y + radius, radius, color);
+  fillCircle(data, size, x + radius, y + height - radius, radius, color);
+  fillCircle(data, size, x + width - radius, y + height - radius, radius, color);
+}
+
+function fillPolygon(data, size, points, color) {
+  const minY = Math.floor(Math.min(...points.map((point) => point[1])));
+  const maxY = Math.ceil(Math.max(...points.map((point) => point[1])));
+  for (let y = minY; y <= maxY; y += 1) {
+    const intersections = [];
+    for (let index = 0; index < points.length; index += 1) {
+      const current = points[index];
+      const next = points[(index + 1) % points.length];
+      if ((current[1] <= y && next[1] > y) || (next[1] <= y && current[1] > y)) {
+        intersections.push(current[0] + ((y - current[1]) * (next[0] - current[0])) / (next[1] - current[1]));
+      }
+    }
+    intersections.sort((a, b) => a - b);
+    for (let index = 0; index < intersections.length; index += 2) {
+      for (let x = Math.ceil(intersections[index]); x <= Math.floor(intersections[index + 1]); x += 1) {
+        setPixel(data, size, x, y, color);
+      }
+    }
+  }
+}
+
 function drawLine(data, size, x1, y1, x2, y2, width, color) {
   const steps = Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1));
   for (let index = 0; index <= steps; index += 1) {
@@ -57,33 +91,81 @@ function drawLine(data, size, x1, y1, x2, y2, width, color) {
   }
 }
 
-function drawIcon(size) {
+function drawBezier(data, size, points, width, color) {
+  let previous = points[0];
+  for (let step = 1; step <= 60; step += 1) {
+    const t = step / 60;
+    const inverse = 1 - t;
+    const current = [
+      inverse ** 3 * points[0][0] + 3 * inverse ** 2 * t * points[1][0] + 3 * inverse * t ** 2 * points[2][0] + t ** 3 * points[3][0],
+      inverse ** 3 * points[0][1] + 3 * inverse ** 2 * t * points[1][1] + 3 * inverse * t ** 2 * points[2][1] + t ** 3 * points[3][1]
+    ];
+    drawLine(data, size, previous[0], previous[1], current[0], current[1], width, color);
+    previous = current;
+  }
+}
+
+function renderIcon(size) {
   const data = createCanvas(size);
-  const dark = rgba('#003d2f');
-  const green = rgba('#10b981');
+  const navy = rgba('#0b1f33');
+  const emerald = rgba('#10b981');
   const mint = rgba('#d1fae5');
-  const white = rgba('#ffffff');
-  const blue = rgba('#2563eb');
+  const amber = rgba('#f59e0b');
 
-  fillRect(data, size, 0, 0, size, size, dark);
-  fillCircle(data, size, size * 0.18, size * 0.18, size * 0.42, rgba('#075f47'));
+  fillRoundedRect(data, size, size * 0.035, size * 0.035, size * 0.93, size * 0.93, size * 0.2, navy);
+  fillCircle(data, size, size * 0.78, size * 0.16, size * 0.36, rgba('#173b50', 155));
+  fillCircle(data, size, size * 0.13, size * 0.82, size * 0.32, rgba('#0b5449', 100));
 
-  drawLine(data, size, size * 0.18, size * 0.72, size * 0.42, size * 0.48, size * 0.055, green);
-  drawLine(data, size, size * 0.42, size * 0.48, size * 0.76, size * 0.62, size * 0.055, green);
-  fillCircle(data, size, size * 0.18, size * 0.72, size * 0.055, mint);
-  fillCircle(data, size, size * 0.42, size * 0.48, size * 0.055, mint);
-  fillCircle(data, size, size * 0.76, size * 0.62, size * 0.055, mint);
+  const route = [
+    [size * 0.22, size * 0.72],
+    [size * 0.35, size * 0.44],
+    [size * 0.52, size * 0.69],
+    [size * 0.68, size * 0.48]
+  ];
+  drawBezier(data, size, route, size * 0.072, rgba('#071724', 150));
+  drawBezier(data, size, route, size * 0.047, emerald);
 
-  fillRect(data, size, size * 0.24, size * 0.28, size * 0.31, size * 0.23, white);
-  fillRect(data, size, size * 0.55, size * 0.35, size * 0.17, size * 0.16, white);
-  fillRect(data, size, size * 0.6, size * 0.31, size * 0.08, size * 0.08, white);
-  fillRect(data, size, size * 0.28, size * 0.32, size * 0.22, size * 0.055, green);
-  fillCircle(data, size, size * 0.34, size * 0.54, size * 0.055, dark);
-  fillCircle(data, size, size * 0.64, size * 0.54, size * 0.055, dark);
-  fillCircle(data, size, size * 0.34, size * 0.54, size * 0.028, blue);
-  fillCircle(data, size, size * 0.64, size * 0.54, size * 0.028, blue);
+  fillCircle(data, size, size * 0.22, size * 0.72, size * 0.085, navy);
+  fillCircle(data, size, size * 0.22, size * 0.72, size * 0.058, mint);
+  fillCircle(data, size, size * 0.22, size * 0.72, size * 0.023, emerald);
+
+  fillPolygon(data, size, [
+    [size * 0.46, size * 0.49],
+    [size * 0.61, size * 0.54],
+    [size * 0.49, size * 0.63]
+  ], mint);
+
+  fillPolygon(data, size, [
+    [size * 0.68, size * 0.59],
+    [size * 0.58, size * 0.39],
+    [size * 0.78, size * 0.39]
+  ], amber);
+  fillCircle(data, size, size * 0.68, size * 0.34, size * 0.145, amber);
+  fillCircle(data, size, size * 0.68, size * 0.34, size * 0.067, navy);
+  fillCircle(data, size, size * 0.68, size * 0.34, size * 0.027, mint);
 
   return data;
+}
+
+function drawIcon(size) {
+  const scale = 4;
+  const sourceSize = size * scale;
+  const source = renderIcon(sourceSize);
+  const output = createCanvas(size);
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const totals = [0, 0, 0, 0];
+      for (let sourceY = y * scale; sourceY < (y + 1) * scale; sourceY += 1) {
+        for (let sourceX = x * scale; sourceX < (x + 1) * scale; sourceX += 1) {
+          const index = (sourceY * sourceSize + sourceX) * 4;
+          for (let channel = 0; channel < 4; channel += 1) totals[channel] += source[index + channel];
+        }
+      }
+      const outputIndex = (y * size + x) * 4;
+      for (let channel = 0; channel < 4; channel += 1) output[outputIndex + channel] = Math.round(totals[channel] / scale ** 2);
+    }
+  }
+  return output;
 }
 
 const crcTable = new Uint32Array(256).map((_, index) => {
@@ -178,19 +260,34 @@ writeFileSync(
 
 writeFileSync(
   join(publicDir, 'manifest.webmanifest'),
-  JSON.stringify(
+  `${JSON.stringify(
     {
-      name: 'LogiTrack - Gestão de Entregas',
+      id: '/',
+      name: 'LogiTrack — Gestão inteligente de entregas',
       short_name: 'LogiTrack',
+      description: 'Gestão de entregas, rotas, frota e ocorrências em uma única plataforma.',
+      lang: 'pt-BR',
+      start_url: '/',
+      scope: '/',
       icons: [
-        { src: '/android-chrome-192x192.png', sizes: '192x192', type: 'image/png' },
-        { src: '/android-chrome-512x512.png', sizes: '512x512', type: 'image/png' }
+        { src: '/android-chrome-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+        { src: '/android-chrome-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
       ],
-      theme_color: '#003d2f',
-      background_color: '#f5f8f7',
-      display: 'standalone'
+      theme_color: '#0b1f33',
+      background_color: '#f4f7f6',
+      display: 'standalone',
+      orientation: 'any',
+      categories: ['business', 'navigation', 'productivity'],
+      shortcuts: [
+        {
+          name: 'Operações',
+          short_name: 'Operações',
+          description: 'Acompanhar as entregas em andamento',
+          url: '/operations'
+        }
+      ]
     },
     null,
     2
-  )
+  )}\n`
 );

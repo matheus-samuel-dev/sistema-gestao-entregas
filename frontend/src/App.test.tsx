@@ -1,4 +1,5 @@
 import { ThemeProvider } from '@mui/material/styles';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from './api/client';
@@ -63,11 +64,20 @@ const dashboard = {
 };
 
 function renderApp() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: 0 },
+      mutations: { retry: false }
+    }
+  });
+
   return render(
     <ThemeProvider theme={theme}>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </QueryClientProvider>
     </ThemeProvider>
   );
 }
@@ -94,6 +104,12 @@ describe('App navigation', () => {
       }
       if (url === '/dashboard') {
         return Promise.resolve({ data: dashboard });
+      }
+      if (url === '/notifications') {
+        return Promise.resolve({ data: { items: [], unreadCount: 0 } });
+      }
+      if (url === '/conversations') {
+        return Promise.resolve({ data: [] });
       }
       return Promise.resolve({ data: [] });
     });

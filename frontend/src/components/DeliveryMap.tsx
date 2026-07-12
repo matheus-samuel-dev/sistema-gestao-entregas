@@ -1,10 +1,11 @@
-import { Box, Dialog, DialogContent, IconButton, Stack, Tooltip, Typography } from '@mui/material';
+import { Box, Chip, Dialog, DialogContent, IconButton, Stack, Tooltip, Typography } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import L from 'leaflet';
 import { useMemo, useState } from 'react';
 import { MapContainer, Marker, Polyline, Popup, TileLayer } from 'react-leaflet';
 import type { MapDelivery } from '../api/types';
+import { formatDateTime } from './format';
 import { StatusBadge } from './StatusBadge';
 
 interface DeliveryMapProps {
@@ -15,7 +16,7 @@ interface DeliveryMapProps {
 function createIcon(color: string) {
   return L.divIcon({
     className: '',
-    html: `<div class="delivery-marker" style="background:${color}">&#8599;</div>`,
+    html: `<div class="delivery-marker" style="background:${color}" aria-hidden="true">&#128666;</div>`,
     iconSize: [34, 34],
     iconAnchor: [17, 17]
   });
@@ -29,6 +30,11 @@ function MapBody({ deliveries, height = 440 }: DeliveryMapProps) {
     const lat = deliveries.reduce((sum, item) => sum + item.currentLat, 0) / deliveries.length;
     const lng = deliveries.reduce((sum, item) => sum + item.currentLng, 0) / deliveries.length;
     return [lat, lng];
+  }, [deliveries]);
+  const legend = useMemo(() => {
+    const unique = new Map<string, MapDelivery>();
+    deliveries.forEach((delivery) => unique.set(delivery.legendLabel ?? delivery.status, delivery));
+    return [...unique.values()];
   }, [deliveries]);
 
   return (
@@ -51,8 +57,12 @@ function MapBody({ deliveries, height = 440 }: DeliveryMapProps) {
                 <Typography variant="body2" color="text.secondary">
                   Motorista: {delivery.driverName}
                 </Typography>
+                {delivery.vehiclePlate ? <Typography variant="body2" color="text.secondary">Veículo: {delivery.vehiclePlate}</Typography> : null}
+                {delivery.routeName ? <Typography variant="body2" color="text.secondary">Rota: {delivery.routeName}</Typography> : null}
+                {delivery.expectedAt ? <Typography variant="caption">Previsão: {formatDateTime(delivery.expectedAt)}</Typography> : null}
                 <StatusBadge status={delivery.status} label={delivery.statusLabel} />
                 <Typography variant="caption">Progresso: {delivery.progress}%</Typography>
+                {delivery.hasOpenIncident ? <Chip label="Ocorrência aberta" color="error" size="small" variant="outlined" /> : null}
               </Stack>
             </Popup>
           </Marker>
@@ -88,11 +98,11 @@ function MapBody({ deliveries, height = 440 }: DeliveryMapProps) {
             boxShadow: '0 10px 26px rgba(15,23,42,0.12)'
           }}
         >
-          {deliveries.slice(0, 5).map((delivery) => (
-            <Stack key={`legend-${delivery.id}`} direction="row" spacing={0.8} alignItems="center">
+          {legend.slice(0, 8).map((delivery) => (
+            <Stack key={`legend-${delivery.legendLabel ?? delivery.status}`} direction="row" spacing={0.8} alignItems="center">
               <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: delivery.color }} />
               <Typography variant="caption" fontWeight={850}>
-                {delivery.statusLabel}
+                {delivery.legendLabel ?? delivery.statusLabel}
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 {delivery.progress}%

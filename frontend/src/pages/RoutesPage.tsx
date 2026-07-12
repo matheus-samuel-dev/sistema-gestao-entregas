@@ -21,21 +21,22 @@ function RouteMapPanel() {
 
   const mapRoutes = useMemo<MapDelivery[]>(
     () =>
-      routes.map((route) => ({
+      routes.filter((route) => route.originLat != null && route.originLng != null && route.destinationLat != null && route.destinationLng != null).map((route) => ({
         id: route.id,
         orderNumber: route.name,
         customerName: route.destination,
-        driverName: 'Rota planejada',
-        status: 'IN_PROGRESS',
+        driverName: 'Trajeto calculado pelo LogiTrack',
+        status: route.status === 'CANCELED' ? 'CANCELED' : route.status === 'COMPLETED' ? 'DELIVERED' : 'IN_PROGRESS',
         statusLabel: route.statusLabel,
-        progress: 50,
-        currentLat: route.originLat + (route.destinationLat - route.originLat) * 0.5,
-        currentLng: route.originLng + (route.destinationLng - route.originLng) * 0.5,
-        originLat: route.originLat,
-        originLng: route.originLng,
-        destinationLat: route.destinationLat,
-        destinationLng: route.destinationLng,
-        color: route.color
+        progress: route.status === 'COMPLETED' ? 100 : route.status === 'ACTIVE' ? 50 : 0,
+        currentLat: route.originLat! + (route.destinationLat! - route.originLat!) * 0.5,
+        currentLng: route.originLng! + (route.destinationLng! - route.originLng!) * 0.5,
+        originLat: route.originLat!,
+        originLng: route.originLng!,
+        destinationLat: route.destinationLat!,
+        destinationLng: route.destinationLng!,
+        color: route.color,
+        legendLabel: route.name
       })),
     [routes]
   );
@@ -70,17 +71,15 @@ export function RoutesPage() {
             endpoint="/routes"
             noun="Rota"
             searchPlaceholder="Buscar por nome, origem ou destino"
+            createLabel="Criar rota"
+            saveLabel="Salvar rota"
+            updateLabel="Salvar rota"
+            confirmDescription="A rota será cancelada e não poderá receber novas entregas. O histórico será preservado."
             initialValues={{
               name: '',
               origin: 'CD LogiTrack - Vila Leopoldina',
               destination: '',
-              estimatedDistanceKm: 0,
-              estimatedTimeMinutes: 0,
               status: 'PLANNED',
-              originLat: -23.529,
-              originLng: -46.737,
-              destinationLat: -23.55,
-              destinationLng: -46.63,
               color: '#10b981'
             }}
             columns={[
@@ -96,12 +95,6 @@ export function RoutesPage() {
               { key: 'status', label: 'Status', type: 'select', options: routeStatusOptions, required: true },
               { key: 'origin', label: 'Origem', required: true },
               { key: 'destination', label: 'Destino', required: true },
-              { key: 'estimatedDistanceKm', label: 'Distância estimada (km)', type: 'number', required: true, min: 0.1 },
-              { key: 'estimatedTimeMinutes', label: 'Tempo estimado (min)', type: 'number', required: true, min: 1 },
-              { key: 'originLat', label: 'Latitude origem', type: 'number', required: true },
-              { key: 'originLng', label: 'Longitude origem', type: 'number', required: true },
-              { key: 'destinationLat', label: 'Latitude destino', type: 'number', required: true },
-              { key: 'destinationLng', label: 'Longitude destino', type: 'number', required: true },
               { key: 'color', label: 'Cor da rota', type: 'color', required: true }
             ]}
             filters={[{ key: 'status', label: 'Status', type: 'select', options: routeStatusOptions }]}
@@ -109,13 +102,7 @@ export function RoutesPage() {
               name: form.name,
               origin: form.origin,
               destination: form.destination,
-              estimatedDistanceKm: Number(form.estimatedDistanceKm),
-              estimatedTimeMinutes: Number(form.estimatedTimeMinutes),
               status: form.status,
-              originLat: Number(form.originLat),
-              originLng: Number(form.originLng),
-              destinationLat: Number(form.destinationLat),
-              destinationLng: Number(form.destinationLng),
               color: form.color
             })}
             filterFn={(row, search, filters) => {

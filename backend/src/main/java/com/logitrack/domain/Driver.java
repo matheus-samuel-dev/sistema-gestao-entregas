@@ -10,11 +10,15 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.Index;
 
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "drivers")
+@Table(name = "drivers", indexes = {
+        @Index(name = "idx_drivers_status", columnList = "status"),
+        @Index(name = "idx_drivers_name", columnList = "name")
+})
 public class Driver {
 
     @Id

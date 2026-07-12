@@ -27,6 +27,8 @@ import com.logitrack.repository.VehicleRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,9 +38,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Configuration
+@Profile({"demo", "test"})
 public class DataSeeder {
 
     @Bean
+    @Order(1)
     @Transactional
     CommandLineRunner seedData(
             UserRepository userRepository,
@@ -126,10 +130,10 @@ public class DataSeeder {
                     incident(deliveries.get(1), IncidentType.DELIVERY_DELAY, IncidentPriority.HIGH, IncidentStatus.OPEN, "Operacoes", "Entrega impactada por congestionamento na regiao central.", null, now.minusMinutes(15)),
                     incident(deliveries.get(4), IncidentType.CUSTOMER_NOT_FOUND, IncidentPriority.MEDIUM, IncidentStatus.OPEN, "Central de Atendimento", "Motorista não localizou o responsável no endereço.", null, now.minusHours(1)),
                     incident(deliveries.get(5), IncidentType.WRONG_ADDRESS, IncidentPriority.MEDIUM, IncidentStatus.IN_REVIEW, "Suporte Logistico", "Numero informado diverge da fachada do cliente.", null, now.minusHours(2)),
-                    incident(deliveries.get(0), IncidentType.PROBLEM_SOLVED, IncidentPriority.LOW, IncidentStatus.RESOLVED, "Operacoes", "Contato confirmado e entrega finalizada.", "Cliente recebeu a mercadoria.", now.minusHours(3)),
+                    incident(deliveries.get(0), IncidentType.OTHER, IncidentPriority.LOW, IncidentStatus.RESOLVED, "Operacoes", "Contato confirmado e entrega finalizada.", "Cliente recebeu a mercadoria.", now.minusHours(3)),
                     incident(deliveries.get(6), IncidentType.VEHICLE_PROBLEM, IncidentPriority.HIGH, IncidentStatus.IN_REVIEW, "Frota", "Alerta preventivo de temperatura do motor.", null, now.minusHours(4)),
                     incident(deliveries.get(7), IncidentType.DAMAGED_PRODUCT, IncidentPriority.CRITICAL, IncidentStatus.OPEN, "Qualidade", "Volume sinalizado para conferencia na chegada.", null, now.minusHours(5)),
-                    incident(deliveries.get(2), IncidentType.PROBLEM_SOLVED, IncidentPriority.LOW, IncidentStatus.RESOLVED, "Operacoes", "Divergencia de nota fiscal resolvida.", "Documento reemitido.", now.minusHours(6)),
+                    incident(deliveries.get(2), IncidentType.DOCUMENTATION_FAILURE, IncidentPriority.LOW, IncidentStatus.RESOLVED, "Operacoes", "Divergencia de nota fiscal resolvida.", "Documento reemitido.", now.minusHours(6)),
                     incident(deliveries.get(8), IncidentType.DELIVERY_DELAY, IncidentPriority.MEDIUM, IncidentStatus.OPEN, "Monitoramento", "Chuva forte reduziu velocidade media da rota.", null, now.minusMinutes(40))
             ));
         };

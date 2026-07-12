@@ -5,6 +5,11 @@ import { driverStatusOptions } from '../components/status';
 import { StatusBadge } from '../components/StatusBadge';
 
 export function DriversPage() {
+  const editableStatusOptions = driverStatusOptions.map((option) => ({
+    ...option,
+    disabled: option.value === 'ON_ROUTE'
+  }));
+
   return (
     <CrudPage<Driver>
       title="Motoristas"
@@ -12,14 +17,15 @@ export function DriversPage() {
       endpoint="/drivers"
       noun="Motorista"
       searchPlaceholder="Buscar por nome, telefone ou CNH"
+      createLabel="Adicionar motorista"
+      saveLabel="Salvar motorista"
+      updateLabel="Salvar motorista"
+      confirmDescription="O motorista será inativado e não poderá receber novas entregas. O histórico será preservado."
       initialValues={{
         name: '',
         phone: '',
         licenseNumber: '',
         status: 'AVAILABLE',
-        currentVehicle: '',
-        deliveriesCompleted: 0,
-        successRate: 98
       }}
       columns={[
         { key: 'name', label: 'Nome', minWidth: 180 },
@@ -45,10 +51,7 @@ export function DriversPage() {
         { key: 'name', label: 'Nome', required: true },
         { key: 'phone', label: 'Telefone', required: true, mask: 'phone' },
         { key: 'licenseNumber', label: 'CNH', required: true },
-        { key: 'status', label: 'Status', type: 'select', options: driverStatusOptions, required: true },
-        { key: 'currentVehicle', label: 'Veículo atual', mask: 'plate' },
-        { key: 'deliveriesCompleted', label: 'Entregas concluídas', type: 'number', min: 0 },
-        { key: 'successRate', label: 'Taxa de sucesso (%)', type: 'number', min: 0, max: 100 }
+        { key: 'status', label: 'Status', type: 'select', options: editableStatusOptions, required: true },
       ]}
       filters={[{ key: 'status', label: 'Status', type: 'select', options: driverStatusOptions }]}
       mapToPayload={(form) => ({
@@ -56,9 +59,9 @@ export function DriversPage() {
         phone: form.phone,
         licenseNumber: form.licenseNumber,
         status: form.status,
-        currentVehicle: form.currentVehicle || null,
-        deliveriesCompleted: Number(form.deliveriesCompleted ?? 0),
-        successRate: Number(form.successRate ?? 0)
+        currentVehicle: null,
+        deliveriesCompleted: null,
+        successRate: null
       })}
       filterFn={(row, search, filters) => {
         const matchesSearch =

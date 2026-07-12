@@ -1,7 +1,9 @@
-import { Box, Button, Card, CardContent, Skeleton, Stack, Typography } from '@mui/material';
+import { Alert, Box, Button, Card, CardContent, Skeleton, Stack, Typography } from '@mui/material';
 import type { ReactNode } from 'react';
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import CloudOffOutlinedIcon from '@mui/icons-material/CloudOffOutlined';
+import ErrorOutlineOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
 
 interface EmptyStateProps {
   title: string;
@@ -10,9 +12,10 @@ interface EmptyStateProps {
   icon?: ReactNode;
   onAction?: () => void;
   onRetry?: () => void;
+  compact?: boolean;
 }
 
-export function EmptyState({ title, description, actionLabel, icon, onAction, onRetry }: EmptyStateProps) {
+export function EmptyState({ title, description, actionLabel, icon, onAction, onRetry, compact = false }: EmptyStateProps) {
   const action = onAction ?? onRetry;
   const label = actionLabel ?? (onRetry ? 'Atualizar' : undefined);
 
@@ -23,10 +26,10 @@ export function EmptyState({ title, description, actionLabel, icon, onAction, on
         border: '1px dashed',
         borderColor: 'divider',
         borderRadius: 2,
-        py: { xs: 5, md: 6 },
+        py: compact ? 3 : { xs: 5, md: 6 },
         px: 2,
         textAlign: 'center',
-        bgcolor: '#fbfefd'
+        bgcolor: 'background.paper'
       }}
     >
       <Stack spacing={1.5} alignItems="center" maxWidth={460} mx="auto">
@@ -59,9 +62,49 @@ export function EmptyState({ title, description, actionLabel, icon, onAction, on
   );
 }
 
+export function ErrorState({
+  title = 'Não foi possível carregar os dados',
+  description = 'Tente novamente. Se o problema persistir, verifique a conexão com a API.',
+  onRetry
+}: {
+  title?: string;
+  description?: string;
+  onRetry?: () => void;
+}) {
+  return (
+    <EmptyState
+      title={title}
+      description={description}
+      icon={<ErrorOutlineOutlinedIcon color="error" fontSize="large" />}
+      onRetry={onRetry}
+      actionLabel="Tentar novamente"
+    />
+  );
+}
+
+export function OfflineState({ onRetry }: { onRetry?: () => void }) {
+  return (
+    <EmptyState
+      title="Você está offline"
+      description="Os dados já carregados continuam disponíveis. Reconecte-se para sincronizar alterações."
+      icon={<CloudOffOutlinedIcon fontSize="large" />}
+      onRetry={onRetry}
+      actionLabel="Verificar conexão"
+    />
+  );
+}
+
+export function BackgroundSyncAlert() {
+  return (
+    <Alert severity="info" variant="outlined" role="status" sx={{ py: 0 }}>
+      Sincronizando dados em segundo plano…
+    </Alert>
+  );
+}
+
 export function TableSkeleton({ rows = 7, columns = 6 }: { rows?: number; columns?: number }) {
   return (
-    <Card className="page-enter">
+    <Card className="page-enter" aria-busy="true" aria-label="Carregando tabela">
       <CardContent>
         <Stack spacing={1.2}>
           <Skeleton variant="rounded" height={42} />
@@ -80,7 +123,7 @@ export function TableSkeleton({ rows = 7, columns = 6 }: { rows?: number; column
 
 export function CardSkeleton({ rows = 3, height = 160 }: { rows?: number; height?: number }) {
   return (
-    <Card className="page-enter" sx={{ height: '100%' }}>
+    <Card className="page-enter" aria-busy="true" aria-label="Carregando conteúdo" sx={{ height: '100%' }}>
       <CardContent>
         <Stack spacing={1.4}>
           <Skeleton variant="rounded" height={height} />

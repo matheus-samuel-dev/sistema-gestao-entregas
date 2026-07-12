@@ -46,7 +46,7 @@ public final class Dtos {
     }
 
     public record OrderRequest(
-            @NotBlank String orderNumber,
+            String orderNumber,
             @NotBlank String customerName,
             @NotBlank String phone,
             @NotBlank String address,
@@ -54,8 +54,22 @@ public final class Dtos {
             @NotBlank @Size(min = 2, max = 2) String state,
             @NotNull @DecimalMin("0.01") BigDecimal value,
             OrderStatus status,
-            @NotNull LocalDateTime expectedDeliveryAt
+            @NotNull LocalDateTime expectedDeliveryAt,
+            @DecimalMin("0.0") BigDecimal weightKg
     ) {
+        public OrderRequest(
+                String orderNumber,
+                String customerName,
+                String phone,
+                String address,
+                String city,
+                String state,
+                BigDecimal value,
+                OrderStatus status,
+                LocalDateTime expectedDeliveryAt
+        ) {
+            this(orderNumber, customerName, phone, address, city, state, value, status, expectedDeliveryAt, null);
+        }
     }
 
     public record OrderResponse(
@@ -70,7 +84,9 @@ public final class Dtos {
             OrderStatus status,
             String statusLabel,
             LocalDateTime createdAt,
-            LocalDateTime expectedDeliveryAt
+            LocalDateTime expectedDeliveryAt,
+            String trackingCode,
+            BigDecimal weightKg
     ) {
     }
 
@@ -123,14 +139,14 @@ public final class Dtos {
             @NotBlank String name,
             @NotBlank String origin,
             @NotBlank String destination,
-            @NotNull @DecimalMin("0.1") BigDecimal estimatedDistanceKm,
-            @NotNull @Min(1) Integer estimatedTimeMinutes,
+            @DecimalMin("0.1") BigDecimal estimatedDistanceKm,
+            @Min(1) Integer estimatedTimeMinutes,
             RouteStatus status,
-            @NotNull Double originLat,
-            @NotNull Double originLng,
-            @NotNull Double destinationLat,
-            @NotNull Double destinationLng,
-            @NotBlank String color
+            Double originLat,
+            Double originLng,
+            Double destinationLat,
+            Double destinationLng,
+            String color
     ) {
     }
 
@@ -178,6 +194,9 @@ public final class Dtos {
             @NotNull DeliveryStatus status,
             @Min(0) @Max(100) Integer progress
     ) {
+    }
+
+    public record RescheduleRequest(@NotNull LocalDateTime expectedAt) {
     }
 
     public record DeliveryResponse(
@@ -235,6 +254,9 @@ public final class Dtos {
     ) {
     }
 
+    public record IncidentResolutionRequest(@NotBlank @Size(max = 1000) String resolution) {
+    }
+
     public record MetricCard(
             String key,
             String title,
@@ -262,6 +284,9 @@ public final class Dtos {
             String orderNumber,
             String customerName,
             String driverName,
+            String vehiclePlate,
+            String routeName,
+            LocalDateTime expectedAt,
             DeliveryStatus status,
             String statusLabel,
             Integer progress,
@@ -271,7 +296,8 @@ public final class Dtos {
             Double originLng,
             Double destinationLat,
             Double destinationLng,
-            String color
+            String color,
+            boolean hasOpenIncident
     ) {
     }
 

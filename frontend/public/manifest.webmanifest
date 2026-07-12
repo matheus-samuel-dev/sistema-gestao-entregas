@@ -1,19 +1,40 @@
 {
-  "name": "LogiTrack - Gestão de Entregas",
+  "id": "/",
+  "name": "LogiTrack — Gestão inteligente de entregas",
   "short_name": "LogiTrack",
+  "description": "Gestão de entregas, rotas, frota e ocorrências em uma única plataforma.",
+  "lang": "pt-BR",
+  "start_url": "/",
+  "scope": "/",
   "icons": [
     {
       "src": "/android-chrome-192x192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "/android-chrome-512x512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ],
-  "theme_color": "#003d2f",
-  "background_color": "#f5f8f7",
-  "display": "standalone"
+  "theme_color": "#0b1f33",
+  "background_color": "#f4f7f6",
+  "display": "standalone",
+  "orientation": "any",
+  "categories": [
+    "business",
+    "navigation",
+    "productivity"
+  ],
+  "shortcuts": [
+    {
+      "name": "Operações",
+      "short_name": "Operações",
+      "description": "Acompanhar as entregas em andamento",
+      "url": "/operations"
+    }
+  ]
 }

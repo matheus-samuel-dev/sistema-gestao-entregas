@@ -33,7 +33,9 @@ public final class DtoMapper {
                 order.getStatus(),
                 order.getStatus().getLabel(),
                 order.getCreatedAt(),
-                order.getExpectedDeliveryAt()
+                order.getExpectedDeliveryAt(),
+                order.getTrackingCode(),
+                order.getWeightKg()
         );
     }
 

@@ -73,14 +73,48 @@ class DeliveryServiceTest {
 
         var created = deliveryService.create(request(fixture));
         assertThat(created.status()).isEqualTo(DeliveryStatus.IN_PROGRESS);
-        assertThat(created.progress()).isEqualTo(25);
+        assertThat(created.progress()).isEqualTo(10);
 
         var delivered = deliveryService.markDelivered(created.id());
 
         assertThat(delivered.status()).isEqualTo(DeliveryStatus.DELIVERED);
         assertThat(delivered.progress()).isEqualTo(100);
+        var deliveredAgain = deliveryService.markDelivered(created.id());
+        assertThat(deliveredAgain.progress()).isEqualTo(100);
         assertThat(driverRepository.findById(fixture.driver().getId()).orElseThrow().getStatus()).isEqualTo(DriverStatus.AVAILABLE);
+        assertThat(driverRepository.findById(fixture.driver().getId()).orElseThrow().getDeliveriesCompleted()).isEqualTo(1);
         assertThat(vehicleRepository.findById(fixture.vehicle().getId()).orElseThrow().getStatus()).isEqualTo(VehicleStatus.AVAILABLE);
+        assertThat(vehicleRepository.findById(fixture.vehicle().getId()).orElseThrow().getLinkedDriver()).isNull();
+    }
+
+    @Test
+    void rejectsSecondActiveDeliveryForSameOrder() {
+        var fixture = fixture(DriverStatus.AVAILABLE, VehicleStatus.AVAILABLE);
+        deliveryService.create(request(fixture));
+
+        assertThatThrownBy(() -> deliveryService.create(request(fixture)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("pedido já possui");
+    }
+
+    @Test
+    void rejectsOrderAboveVehicleCapacity() {
+        var fixture = fixture(DriverStatus.AVAILABLE, VehicleStatus.AVAILABLE);
+        fixture.order().setWeightKg(BigDecimal.valueOf(1_200));
+
+        assertThatThrownBy(() -> deliveryService.create(request(fixture)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("capacidade");
+    }
+
+    @Test
+    void rejectsInactiveRoute() {
+        var fixture = fixture(DriverStatus.AVAILABLE, VehicleStatus.AVAILABLE);
+        fixture.route().setStatus(RouteStatus.PLANNED);
+
+        assertThatThrownBy(() -> deliveryService.create(request(fixture)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("rotas ativas");
     }
 
     private Dtos.DeliveryRequest request(Fixture fixture) {

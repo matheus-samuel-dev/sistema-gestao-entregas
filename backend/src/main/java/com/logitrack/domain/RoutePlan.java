@@ -10,11 +10,15 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.Index;
 
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "route_plans")
+@Table(name = "route_plans", indexes = {
+        @Index(name = "idx_routes_status", columnList = "status"),
+        @Index(name = "idx_routes_name", columnList = "name")
+})
 public class RoutePlan {
 
     @Id

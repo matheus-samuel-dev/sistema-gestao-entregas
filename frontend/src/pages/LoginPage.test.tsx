@@ -36,7 +36,9 @@ function renderLogin() {
 
 describe('LoginPage', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     localStorage.clear();
+    sessionStorage.clear();
     vi.mocked(api.post).mockResolvedValue({
       data: {
         token: 'jwt-token',
@@ -48,11 +50,12 @@ describe('LoginPage', () => {
     });
   });
 
-  it('renders demo credentials and submits login', async () => {
+  it('preenche as credenciais demo e envia o login', async () => {
     renderLogin();
 
     expect(screen.getByRole('heading', { name: /logitrack/i })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: /entrar no painel/i }));
+    await userEvent.click(screen.getByRole('button', { name: /preencher acesso demo/i }));
+    await userEvent.click(screen.getByRole('button', { name: /entrar na plataforma/i }));
 
     await waitFor(() => {
       expect(api.post).toHaveBeenCalledWith('/auth/login', {
@@ -60,5 +63,27 @@ describe('LoginPage', () => {
         password: 'Admin@123'
       });
     });
+  });
+
+  it('valida campos obrigatórios antes de chamar a API', async () => {
+    renderLogin();
+
+    await userEvent.click(screen.getByRole('button', { name: /entrar na plataforma/i }));
+
+    expect(await screen.findByText(/informe seu e-mail corporativo/i)).toBeInTheDocument();
+    expect(screen.getByText(/informe sua senha/i)).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('permite mostrar e ocultar a senha', async () => {
+    renderLogin();
+    const password = screen.getByLabelText('Senha') as HTMLInputElement;
+
+    await userEvent.type(password, 'segredo123');
+    expect(password.type).toBe('password');
+    await userEvent.click(screen.getByRole('button', { name: /mostrar senha/i }));
+    expect(password.type).toBe('text');
+    await userEvent.click(screen.getByRole('button', { name: /ocultar senha/i }));
+    expect(password.type).toBe('password');
   });
 });

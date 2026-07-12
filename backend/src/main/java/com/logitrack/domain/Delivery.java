@@ -15,18 +15,30 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.Index;
+import jakarta.persistence.Version;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "deliveries")
+@Table(name = "deliveries", indexes = {
+        @Index(name = "idx_deliveries_status", columnList = "status"),
+        @Index(name = "idx_deliveries_expected_at", columnList = "expectedAt"),
+        @Index(name = "idx_deliveries_order", columnList = "order_id"),
+        @Index(name = "idx_deliveries_driver", columnList = "driver_id"),
+        @Index(name = "idx_deliveries_vehicle", columnList = "vehicle_id"),
+        @Index(name = "idx_deliveries_route", columnList = "route_id")
+})
 public class Delivery {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Version
+    private Long version;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "order_id")
@@ -98,6 +110,10 @@ public class Delivery {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public Long getVersion() {
+        return version;
     }
 
     public CustomerOrder getOrder() {

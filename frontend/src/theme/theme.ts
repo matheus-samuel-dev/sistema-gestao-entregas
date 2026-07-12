@@ -1,40 +1,41 @@
-import { createTheme } from '@mui/material/styles';
+import { alpha, createTheme } from '@mui/material/styles';
+import { tokens } from './tokens';
 
 const controlHeight = 42;
-const radius = 8;
-const cardShadow = '0 14px 38px rgba(15, 23, 42, 0.07)';
-const menuShadow = '0 18px 46px rgba(15, 23, 42, 0.12)';
+const radius = tokens.radius.sm;
+const cardShadow = tokens.shadow.card;
+const menuShadow = tokens.shadow.raised;
 
 export const theme = createTheme({
   palette: {
     mode: 'light',
     primary: {
-      main: '#009f6b',
-      dark: '#003d2f',
-      light: '#ddf8eb',
-      contrastText: '#ffffff'
+      main: tokens.color.brand[600],
+      dark: tokens.color.brand[900],
+      light: tokens.color.brand[100],
+      contrastText: tokens.color.white
     },
     secondary: {
-      main: '#2563eb'
+      main: tokens.color.blue
     },
     warning: {
-      main: '#f59e0b'
+      main: tokens.color.warning
     },
     error: {
-      main: '#ef4444'
+      main: tokens.color.error
     },
     success: {
-      main: '#10b981'
+      main: tokens.color.success
     },
     background: {
-      default: '#f5f8f7',
-      paper: '#ffffff'
+      default: tokens.color.canvas,
+      paper: tokens.color.surface
     },
     text: {
-      primary: '#0f172a',
-      secondary: '#64748b'
+      primary: tokens.color.text,
+      secondary: tokens.color.textMuted
     },
-    divider: '#e6ecea'
+    divider: tokens.color.border
   },
   shape: {
     borderRadius: radius
@@ -44,23 +45,23 @@ export const theme = createTheme({
     h4: {
       fontSize: '1.875rem',
       lineHeight: 1.15,
-      fontWeight: 850,
+      fontWeight: 800,
       letterSpacing: 0
     },
     h5: {
       fontSize: '1.35rem',
       lineHeight: 1.2,
-      fontWeight: 850,
+      fontWeight: 800,
       letterSpacing: 0
     },
     h6: {
       fontSize: '1.05rem',
       lineHeight: 1.25,
-      fontWeight: 850,
+      fontWeight: 800,
       letterSpacing: 0
     },
     subtitle1: {
-      fontWeight: 800,
+      fontWeight: 750,
       letterSpacing: 0
     },
     body1: {
@@ -78,7 +79,8 @@ export const theme = createTheme({
     MuiCssBaseline: {
       styleOverrides: {
         body: {
-          textRendering: 'optimizeLegibility'
+          textRendering: 'optimizeLegibility',
+          scrollbarColor: `${tokens.color.borderStrong} transparent`
         }
       }
     },
@@ -96,7 +98,7 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           minHeight: controlHeight,
-          borderRadius: radius,
+          borderRadius: tokens.radius.md,
           paddingInline: 16,
           transition: 'transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease, border-color 160ms ease',
           '&:hover': {
@@ -110,9 +112,9 @@ export const theme = createTheme({
           minHeight: 36
         },
         contained: {
-          boxShadow: '0 10px 24px rgba(0, 159, 107, 0.18)',
+            boxShadow: `0 10px 24px ${alpha(tokens.color.brand[600], 0.18)}`,
           '&:hover': {
-            boxShadow: '0 14px 30px rgba(0, 159, 107, 0.25)'
+            boxShadow: `0 14px 30px ${alpha(tokens.color.brand[600], 0.25)}`
           }
         }
       }
@@ -122,11 +124,11 @@ export const theme = createTheme({
         root: {
           width: 40,
           height: 40,
-          borderRadius: radius,
+          borderRadius: tokens.radius.md,
           transition: 'transform 160ms ease, background-color 160ms ease, color 160ms ease, box-shadow 160ms ease',
           '&:hover': {
             transform: 'translateY(-1px)',
-            backgroundColor: 'rgba(15, 23, 42, 0.055)'
+            backgroundColor: alpha(tokens.color.navy[950], 0.055)
           },
           '&:active': {
             transform: 'translateY(0)'
@@ -141,8 +143,8 @@ export const theme = createTheme({
     MuiCard: {
       styleOverrides: {
         root: {
-          border: '1px solid #e6ecea',
-          borderRadius: radius,
+          border: `1px solid ${tokens.color.border}`,
+          borderRadius: tokens.radius.md,
           boxShadow: cardShadow,
           overflow: 'hidden'
         }
@@ -167,14 +169,14 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           minHeight: controlHeight,
-          borderRadius: radius,
-          backgroundColor: '#fff',
+          borderRadius: tokens.radius.md,
+          backgroundColor: tokens.color.white,
           transition: 'box-shadow 160ms ease, border-color 160ms ease, background-color 160ms ease',
           '&:hover .MuiOutlinedInput-notchedOutline': {
-            borderColor: '#bdd2cb'
+            borderColor: tokens.color.borderStrong
           },
           '&.Mui-focused': {
-            boxShadow: '0 0 0 4px rgba(16, 185, 129, 0.13)'
+            boxShadow: tokens.shadow.focus
           }
         },
         input: {
@@ -182,14 +184,14 @@ export const theme = createTheme({
           paddingBottom: 10
         },
         notchedOutline: {
-          borderColor: '#dbe5e1'
+          borderColor: tokens.color.border
         }
       }
     },
     MuiInputLabel: {
       styleOverrides: {
         root: {
-          color: '#64748b',
+          color: tokens.color.textMuted,
           fontWeight: 650
         }
       }
@@ -197,15 +199,15 @@ export const theme = createTheme({
     MuiDialog: {
       styleOverrides: {
         paper: {
-          borderRadius: radius + 2,
-          boxShadow: '0 28px 80px rgba(15, 23, 42, 0.22)'
+          borderRadius: tokens.radius.lg,
+          boxShadow: tokens.shadow.floating
         }
       }
     },
     MuiDialogTitle: {
       styleOverrides: {
         root: {
-          fontWeight: 850,
+          fontWeight: 800,
           padding: '20px 24px 16px'
         }
       }
@@ -221,13 +223,13 @@ export const theme = createTheme({
     MuiTableCell: {
       styleOverrides: {
         root: {
-          borderBottomColor: '#edf3f1',
+          borderBottomColor: tokens.color.brand[50],
           paddingTop: 13,
           paddingBottom: 13
         },
         head: {
-          backgroundColor: '#f8fbfa',
-          color: '#475569',
+          backgroundColor: tokens.color.surfaceMuted,
+          color: tokens.color.navy[700],
           fontSize: '0.78rem',
           fontWeight: 800,
           textTransform: 'uppercase',
@@ -240,7 +242,7 @@ export const theme = createTheme({
         root: {
           transition: 'background-color 140ms ease, box-shadow 140ms ease',
           '&.MuiTableRow-hover:hover': {
-            backgroundColor: '#f8fbfa'
+            backgroundColor: tokens.color.surfaceMuted
           }
         }
       }
@@ -262,7 +264,7 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: radius,
-          backgroundColor: '#e6ecea'
+          backgroundColor: tokens.color.border
         },
         bar: {
           borderRadius: radius
@@ -272,8 +274,8 @@ export const theme = createTheme({
     MuiChip: {
       styleOverrides: {
         root: {
-          borderRadius: 6,
-          fontWeight: 850
+          borderRadius: tokens.radius.xs,
+          fontWeight: 800
         },
         label: {
           paddingInline: 9
@@ -283,7 +285,7 @@ export const theme = createTheme({
     MuiTooltip: {
       styleOverrides: {
         tooltip: {
-          borderRadius: 6,
+          borderRadius: tokens.radius.xs,
           fontWeight: 700
         }
       }
@@ -291,9 +293,38 @@ export const theme = createTheme({
     MuiMenu: {
       styleOverrides: {
         paper: {
-          border: '1px solid #e6ecea',
+          border: `1px solid ${tokens.color.border}`,
           boxShadow: menuShadow
         }
+      }
+    },
+    MuiPopover: {
+      styleOverrides: {
+        paper: {
+          border: `1px solid ${tokens.color.border}`,
+          boxShadow: menuShadow,
+          borderRadius: tokens.radius.lg
+        }
+      }
+    },
+    MuiDrawer: {
+      styleOverrides: {
+        paper: {
+          backgroundImage: 'none'
+        }
+      }
+    },
+    MuiAlert: {
+      styleOverrides: {
+        root: {
+          borderRadius: tokens.radius.md,
+          alignItems: 'center'
+        }
+      }
+    },
+    MuiSkeleton: {
+      defaultProps: {
+        animation: 'wave'
       }
     }
   }

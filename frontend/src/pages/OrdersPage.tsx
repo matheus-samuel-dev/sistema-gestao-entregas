@@ -13,15 +13,18 @@ export function OrdersPage() {
       endpoint="/orders"
       noun="Pedido"
       searchPlaceholder="Buscar por número do pedido ou cliente"
+      createLabel="Criar pedido"
+      saveLabel="Salvar pedido"
+      updateLabel="Salvar pedido"
+      confirmDescription="O pedido e qualquer entrega ativa vinculada serão cancelados e sairão do mapa operacional."
       initialValues={{
-        orderNumber: '',
         customerName: '',
         phone: '',
         address: '',
         city: 'São Paulo',
         state: 'SP',
         value: 0,
-        status: 'PENDING',
+        weightKg: 0,
         expectedDeliveryAt: toDateTimeInput()
       }}
       columns={[
@@ -34,14 +37,13 @@ export function OrdersPage() {
         { key: 'expectedDeliveryAt', label: 'Previsão', render: (row) => formatDateTime(row.expectedDeliveryAt), minWidth: 150 }
       ]}
       fields={[
-        { key: 'orderNumber', label: 'Número do pedido', required: true },
         { key: 'customerName', label: 'Cliente', required: true },
         { key: 'phone', label: 'Telefone', required: true, mask: 'phone' },
         { key: 'value', label: 'Valor', type: 'number', required: true, min: 0.01 },
+        { key: 'weightKg', label: 'Peso total (kg)', type: 'number', min: 0 },
         { key: 'address', label: 'Endereço', required: true, xs: 12 },
         { key: 'city', label: 'Cidade', required: true },
         { key: 'state', label: 'Estado', required: true, mask: 'state' },
-        { key: 'status', label: 'Status', type: 'select', options: orderStatusOptions, required: true },
         { key: 'expectedDeliveryAt', label: 'Previsão de entrega', type: 'datetime', required: true }
       ]}
       filters={[
@@ -51,14 +53,13 @@ export function OrdersPage() {
       ]}
       mapToForm={(row) => ({ ...row, expectedDeliveryAt: toDateTimeInput(row.expectedDeliveryAt) })}
       mapToPayload={(form) => ({
-        orderNumber: form.orderNumber,
         customerName: form.customerName,
         phone: form.phone,
         address: form.address,
         city: form.city,
         state: form.state,
         value: Number(form.value),
-        status: form.status,
+        weightKg: Number(form.weightKg ?? 0),
         expectedDeliveryAt: fromDateTimeInput(form.expectedDeliveryAt)
       })}
       filterFn={(row, search, filters) => {

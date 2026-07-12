@@ -2,7 +2,6 @@ package com.logitrack;
 
 import com.logitrack.domain.enums.OrderStatus;
 import com.logitrack.dto.Dtos;
-import com.logitrack.exception.BusinessException;
 import com.logitrack.service.OrderService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,7 +14,6 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -34,16 +32,16 @@ class OrderServiceTest {
         assertThat(response.id()).isNotNull();
         assertThat(response.status()).isEqualTo(OrderStatus.PENDING);
         assertThat(response.customerName()).isEqualTo("Cliente Teste");
+        assertThat(response.orderNumber()).startsWith("PED-").isNotEqualTo(request.orderNumber());
+        assertThat(response.trackingCode()).startsWith("LT-");
     }
 
     @Test
-    void rejectsDuplicatedOrderNumber() {
-        var request = request("#T-DUP-" + UUID.randomUUID().toString().substring(0, 5));
-        orderService.create(request);
+    void keepsGeneratedNumberImmutableOnUpdate() {
+        var created = orderService.create(request("manual-number"));
+        var updated = orderService.update(created.id(), request("attempted-change"));
 
-        assertThatThrownBy(() -> orderService.create(request))
-                .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Já existe");
+        assertThat(updated.orderNumber()).isEqualTo(created.orderNumber());
     }
 
     private Dtos.OrderRequest request(String number) {

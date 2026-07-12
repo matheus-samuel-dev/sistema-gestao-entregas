@@ -1,6 +1,7 @@
 import { Box, Card, CardContent, Stack, Typography } from '@mui/material';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import RemoveIcon from '@mui/icons-material/Remove';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import type { MetricCardData } from '../api/types';
@@ -41,10 +42,13 @@ function useAnimatedValue(target: number, duration = 850) {
 
   useEffect(() => {
     let frame = 0;
-    const startedAt = performance.now();
+    let startedAt: number | null = null;
 
     function tick(now: number) {
-      const progress = Math.min((now - startedAt) / duration, 1);
+      if (startedAt === null) {
+        startedAt = now;
+      }
+      const progress = Math.min(Math.max((now - startedAt) / duration, 0), 1);
       const eased = 1 - Math.pow(1 - progress, 3);
       setValue(target * eased);
 
@@ -82,6 +86,7 @@ function formatAnimatedValue(raw: string, animated: number, type?: 'currency' | 
 
 export function MetricCard({ metric, icon, tone, delay = 0 }: MetricCardProps) {
   const isUp = metric.trend === 'up';
+  const isDown = metric.trend === 'down';
   const parsed = useMemo(() => normalizeNumber(metric.value), [metric.value]);
   const animated = useAnimatedValue(parsed?.value ?? 0);
   const displayValue = parsed ? formatAnimatedValue(metric.value, animated, parsed.type) : metric.value;
@@ -136,15 +141,25 @@ export function MetricCard({ metric, icon, tone, delay = 0 }: MetricCardProps) {
             spacing={0.6}
             alignItems="center"
             sx={{
-              color: isUp ? 'success.main' : 'error.main',
-              bgcolor: isUp ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+              color: isUp ? 'success.main' : isDown ? 'error.main' : 'text.secondary',
+              bgcolor: isUp
+                ? 'rgba(16, 185, 129, 0.1)'
+                : isDown
+                  ? 'rgba(239, 68, 68, 0.1)'
+                  : 'rgba(100, 116, 139, 0.1)',
               alignSelf: 'flex-start',
               borderRadius: 1,
               px: 0.9,
               py: 0.45
             }}
           >
-            {isUp ? <ArrowUpwardIcon sx={{ fontSize: 14 }} /> : <ArrowDownwardIcon sx={{ fontSize: 14 }} />}
+            {isUp ? (
+              <ArrowUpwardIcon sx={{ fontSize: 14 }} />
+            ) : isDown ? (
+              <ArrowDownwardIcon sx={{ fontSize: 14 }} />
+            ) : (
+              <RemoveIcon sx={{ fontSize: 14 }} />
+            )}
             <Typography variant="caption" fontWeight={850}>
               {metric.variation}
             </Typography>

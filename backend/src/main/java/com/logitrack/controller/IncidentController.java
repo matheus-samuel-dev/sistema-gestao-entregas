@@ -48,4 +48,10 @@ public class IncidentController {
     public Dtos.IncidentResponse cancel(@PathVariable Long id) {
         return incidentService.cancel(id);
     }
+
+    @PostMapping("/{id}/resolve")
+    public Dtos.IncidentResponse resolve(@PathVariable Long id,
+                                         @Valid @RequestBody Dtos.IncidentResolutionRequest request) {
+        return incidentService.resolve(id, request);
+    }
 }

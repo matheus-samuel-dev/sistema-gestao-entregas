@@ -15,6 +15,9 @@ const ReportsPage = lazy(() => import('./pages/ReportsPage').then((module) => ({
 const RoutesPage = lazy(() => import('./pages/RoutesPage').then((module) => ({ default: module.RoutesPage })));
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then((module) => ({ default: module.SettingsPage })));
 const VehiclesPage = lazy(() => import('./pages/VehiclesPage').then((module) => ({ default: module.VehiclesPage })));
+const OperationsPage = lazy(() => import('./pages/OperationsPage').then((module) => ({ default: module.OperationsPage })));
+const PublicTrackingPage = lazy(() => import('./pages/PublicTrackingPage').then((module) => ({ default: module.PublicTrackingPage })));
+const SystemStatePage = lazy(() => import('./pages/SystemStatePage').then((module) => ({ default: module.SystemStatePage })));
 
 function FullPageLoader() {
   return (
@@ -65,9 +68,13 @@ export function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/tracking" element={<LazyPage><PublicTrackingPage /></LazyPage>} />
+        <Route path="/tracking/:code" element={<LazyPage><PublicTrackingPage /></LazyPage>} />
+        <Route path="/offline" element={<LazyPage><SystemStatePage code="offline" title="Você está offline" description="Reconecte-se para sincronizar os dados da operação." /></LazyPage>} />
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
             <Route index element={<LazyPage><DashboardPage /></LazyPage>} />
+            <Route path="operations" element={<LazyPage><OperationsPage /></LazyPage>} />
             <Route path="orders" element={<LazyPage><OrdersPage /></LazyPage>} />
             <Route path="deliveries" element={<LazyPage><DeliveriesPage /></LazyPage>} />
             <Route path="drivers" element={<LazyPage><DriversPage /></LazyPage>} />
@@ -77,8 +84,10 @@ export function App() {
             <Route path="reports" element={<LazyPage><ReportsPage /></LazyPage>} />
             <Route path="settings" element={<LazyPage><SettingsPage /></LazyPage>} />
           </Route>
+          <Route path="403" element={<LazyPage><SystemStatePage code="403" title="Acesso restrito" description="Seu perfil não possui permissão para esta área." /></LazyPage>} />
+          <Route path="500" element={<LazyPage><SystemStatePage code="500" title="Falha inesperada" description="A operação não pôde ser concluída. Tente novamente em instantes." /></LazyPage>} />
         </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<LazyPage><SystemStatePage code="404" title="Página não encontrada" description="O endereço informado não existe ou foi movido." /></LazyPage>} />
       </Routes>
     </BrowserRouter>
   );

@@ -43,21 +43,25 @@ public class DashboardService {
     private final DeliveryRepository deliveryRepository;
     private final IncidentRepository incidentRepository;
     private final DriverRepository driverRepository;
+    private final DeliveryService deliveryService;
 
     public DashboardService(
             OrderRepository orderRepository,
             DeliveryRepository deliveryRepository,
             IncidentRepository incidentRepository,
-            DriverRepository driverRepository
+            DriverRepository driverRepository,
+            DeliveryService deliveryService
     ) {
         this.orderRepository = orderRepository;
         this.deliveryRepository = deliveryRepository;
         this.incidentRepository = incidentRepository;
         this.driverRepository = driverRepository;
+        this.deliveryService = deliveryService;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public Dtos.DashboardResponse dashboard() {
+        deliveryService.markOverdueDeliveries();
         var today = LocalDate.now();
         var start = today.atStartOfDay();
         var end = start.plusDays(1);
@@ -66,16 +70,20 @@ public class DashboardService {
         var orders = orderRepository.findAll();
         var drivers = driverRepository.findAll();
         var activeStatuses = EnumSet.of(DeliveryStatus.IN_PROGRESS, DeliveryStatus.COLLECTING, DeliveryStatus.ON_THE_WAY, DeliveryStatus.DELAYED);
-        var totalDeliveries = Math.max(deliveries.size(), 1);
         var delivered = deliveries.stream().filter(d -> d.getStatus() == DeliveryStatus.DELIVERED).count();
+        var deliveredToday = deliveries.stream().filter(d -> d.getStatus() == DeliveryStatus.DELIVERED)
+                .filter(d -> d.getDeliveredAt() != null && !d.getDeliveredAt().isBefore(start) && d.getDeliveredAt().isBefore(end)).count();
+        var canceled = deliveries.stream().filter(d -> d.getStatus() == DeliveryStatus.CANCELED).count();
         var delayed = deliveries.stream().filter(d -> d.getStatus() == DeliveryStatus.DELAYED).count();
         var activeDrivers = drivers.stream()
                 .filter(driver -> driver.getStatus() == DriverStatus.ON_ROUTE || driver.getStatus() == DriverStatus.AVAILABLE)
                 .count();
-        var successRate = (delivered * 100.0) / totalDeliveries;
+        var finishedDeliveries = delivered + canceled;
+        var successRate = finishedDeliveries == 0 ? 0 : (delivered * 100.0) / finishedDeliveries;
         var monthRevenue = orders.stream()
                 .filter(order -> order.getCreatedAt().getYear() == today.getYear())
                 .filter(order -> order.getCreatedAt().getMonth() == today.getMonth())
+                .filter(order -> order.getStatus() != com.logitrack.domain.enums.OrderStatus.CANCELED)
                 .map(order -> order.getValue() == null ? BigDecimal.ZERO : order.getValue())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         var averageMinutes = deliveries.stream()
@@ -86,14 +94,14 @@ public class DashboardService {
                 .orElse(0);
 
         var metrics = List.of(
-                new Dtos.MetricCard("activeDeliveries", "Entregas em andamento", String.valueOf(deliveryRepository.countByStatusIn(activeStatuses)), "monitoradas agora", "up"),
-                new Dtos.MetricCard("delayedDeliveries", "Entregas atrasadas", String.valueOf(delayed), "requer ação", "down"),
-                new Dtos.MetricCard("completedDeliveries", "Entregas concluídas", String.valueOf(delivered), "finalizadas hoje", "up"),
-                new Dtos.MetricCard("successRate", "Taxa de sucesso", String.format(Locale.forLanguageTag("pt-BR"), "%.1f%%", successRate), "base total", "up"),
-                new Dtos.MetricCard("averageDeliveryTime", "Tempo médio", formatDuration(Math.round(averageMinutes)), "entregas concluídas", "up"),
-                new Dtos.MetricCard("monthRevenue", "Receita do mês", formatCurrency(monthRevenue), "pedidos faturados", "up"),
-                new Dtos.MetricCard("activeDrivers", "Motoristas ativos", String.valueOf(activeDrivers), "disponíveis ou em rota", "up"),
-                new Dtos.MetricCard("ordersToday", "Pedidos hoje", String.valueOf(orderRepository.countByCreatedAtBetween(start, end)), "entrada operacional", "up")
+                new Dtos.MetricCard("activeDeliveries", "Entregas em operação", String.valueOf(deliveryRepository.countByStatusIn(activeStatuses)), "inclui atrasadas", "neutral"),
+                new Dtos.MetricCard("delayedDeliveries", "Entregas atrasadas", String.valueOf(delayed), "requer ação", delayed > 0 ? "down" : "neutral"),
+                new Dtos.MetricCard("completedDeliveries", "Entregas concluídas hoje", String.valueOf(deliveredToday), "finalizadas hoje", deliveredToday > 0 ? "up" : "neutral"),
+                new Dtos.MetricCard("successRate", "Taxa de sucesso", String.format(Locale.forLanguageTag("pt-BR"), "%.1f%%", successRate), "entregues entre as finalizadas", "neutral"),
+                new Dtos.MetricCard("averageDeliveryTime", "Tempo médio de ciclo", formatDuration(Math.round(averageMinutes)), "criação até entrega", "neutral"),
+                new Dtos.MetricCard("monthRevenue", "Valor de pedidos no mês", formatCurrency(monthRevenue), "exclui conceito de faturamento", "neutral"),
+                new Dtos.MetricCard("activeDrivers", "Motoristas operacionais", String.valueOf(activeDrivers), "disponíveis ou em rota", "neutral"),
+                new Dtos.MetricCard("ordersToday", "Pedidos recebidos hoje", String.valueOf(orderRepository.countByCreatedAtBetween(start, end)), "entrada operacional", "neutral")
         );
 
         return new Dtos.DashboardResponse(
@@ -102,7 +110,7 @@ public class DashboardService {
                 dayPerformance(deliveries, start),
                 deliveriesByPeriod(start),
                 incidentsByType(incidents),
-                realtimeDeliveries(deliveries, activeStatuses),
+                realtimeDeliveries(deliveries, incidents, activeStatuses),
                 upcomingDeliveries(deliveries),
                 recentIncidents(incidents),
                 activeDeliveryRows(deliveries, activeStatuses)
@@ -124,8 +132,9 @@ public class DashboardService {
                     var bucketStart = start.plusHours(index * 4L);
                     var bucketEnd = bucketStart.plusHours(4);
                     var count = deliveries.stream()
-                            .filter(delivery -> !delivery.getExpectedAt().isBefore(bucketStart))
-                            .filter(delivery -> delivery.getExpectedAt().isBefore(bucketEnd))
+                            .filter(delivery -> delivery.getDeliveredAt() != null)
+                            .filter(delivery -> !delivery.getDeliveredAt().isBefore(bucketStart))
+                            .filter(delivery -> delivery.getDeliveredAt().isBefore(bucketEnd))
                             .count();
                     return new Dtos.PerformancePoint(bucketStart.format(DateTimeFormatter.ofPattern("HH'h'")), count);
                 })
@@ -153,7 +162,18 @@ public class DashboardService {
                 .toList();
     }
 
-    private List<Dtos.MapDelivery> realtimeDeliveries(List<Delivery> deliveries, EnumSet<DeliveryStatus> activeStatuses) {
+    private List<Dtos.MapDelivery> realtimeDeliveries(
+            List<Delivery> deliveries,
+            List<Incident> incidents,
+            EnumSet<DeliveryStatus> activeStatuses
+    ) {
+        var incidentDeliveryIds = incidents.stream()
+                .filter(incident -> incident.getDelivery() != null)
+                .filter(incident -> incident.getStatus() != IncidentStatus.RESOLVED
+                        && incident.getStatus() != IncidentStatus.CANCELED)
+                .map(incident -> incident.getDelivery().getId())
+                .collect(Collectors.toSet());
+
         return deliveries.stream()
                 .filter(delivery -> activeStatuses.contains(delivery.getStatus()))
                 .sorted(Comparator.comparing(Delivery::getExpectedAt))
@@ -164,6 +184,9 @@ public class DashboardService {
                             delivery.getOrder().getOrderNumber(),
                             delivery.getOrder().getCustomerName(),
                             delivery.getDriver().getName(),
+                            delivery.getVehicle().getPlate(),
+                            route == null ? null : route.getName(),
+                            delivery.getExpectedAt(),
                             delivery.getStatus(),
                             delivery.getStatus().getLabel(),
                             delivery.getProgress(),
@@ -173,7 +196,8 @@ public class DashboardService {
                             route == null ? delivery.getCurrentLng() : route.getOriginLng(),
                             route == null ? delivery.getCurrentLat() : route.getDestinationLat(),
                             route == null ? delivery.getCurrentLng() : route.getDestinationLng(),
-                            route == null ? DELIVERY_COLORS.get(delivery.getStatus()) : route.getColor()
+                            route == null ? DELIVERY_COLORS.get(delivery.getStatus()) : route.getColor(),
+                            incidentDeliveryIds.contains(delivery.getId())
                     );
                 })
                 .toList();

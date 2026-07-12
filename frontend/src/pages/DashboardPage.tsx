@@ -22,7 +22,6 @@ import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import ErrorOutlineOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
 import LocalShippingOutlinedIcon from '@mui/icons-material/LocalShippingOutlined';
-import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 import TimerOutlinedIcon from '@mui/icons-material/TimerOutlined';
 import TimelineOutlinedIcon from '@mui/icons-material/TimelineOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
@@ -63,6 +62,18 @@ const iconByMetric: Record<string, { icon: JSX.Element; tone: string }> = {
   activeDrivers: { icon: <GroupsOutlinedIcon />, tone: '#0f766e' },
   ordersToday: { icon: <AssignmentTurnedInOutlinedIcon />, tone: '#f59e0b' },
   openIncidents: { icon: <ErrorOutlineOutlinedIcon />, tone: '#ef4444' }
+};
+
+const routeByMetric: Record<string, string> = {
+  activeDeliveries: '/deliveries',
+  delayedDeliveries: '/deliveries',
+  completedDeliveries: '/deliveries',
+  successRate: '/reports',
+  averageDeliveryTime: '/reports',
+  monthRevenue: '/reports',
+  activeDrivers: '/drivers',
+  ordersToday: '/orders',
+  openIncidents: '/incidents'
 };
 
 const chartTooltipStyle = {
@@ -158,12 +169,12 @@ export function DashboardPage() {
         <Box>
           <Typography variant="h5">Centro operacional</Typography>
           <Typography color="text.secondary">
-            Indicadores em tempo real para entregas, atrasos, frota, receita e ocorrências.
+            Visão consolidada de entregas, atrasos, frota, receita e ocorrências.
           </Typography>
         </Box>
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
           <Button component={NavLink} to="/deliveries" variant="contained" startIcon={<LocalShippingOutlinedIcon />}>
-            Nova entrega
+            Criar entrega
           </Button>
           <Button component={NavLink} to="/reports" variant="outlined" startIcon={<TimelineOutlinedIcon />}>
             Relatórios
@@ -187,13 +198,34 @@ export function DashboardPage() {
           : data?.metrics.map((metric, index) => {
               const visual = metricVisual(metric);
               return (
-                <MetricCard
+                <Box
                   key={metric.key}
-                  metric={metric}
-                  icon={visual.icon}
-                  tone={visual.tone}
-                  delay={index * 45}
-                />
+                  component={NavLink}
+                  to={routeByMetric[metric.key] ?? '/reports'}
+                  aria-label={`Abrir detalhes de ${metric.title}`}
+                  sx={{
+                    color: 'inherit',
+                    display: 'block',
+                    borderRadius: 2,
+                    textDecoration: 'none',
+                    '&:focus-visible': {
+                      outline: '3px solid',
+                      outlineColor: 'primary.main',
+                      outlineOffset: 3
+                    },
+                    '&:hover .soft-card': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 16px 36px rgba(15, 23, 42, 0.12)'
+                    }
+                  }}
+                >
+                  <MetricCard
+                    metric={metric}
+                    icon={visual.icon}
+                    tone={visual.tone}
+                    delay={index * 45}
+                  />
+                </Box>
               );
             })}
       </Box>
@@ -201,7 +233,7 @@ export function DashboardPage() {
       <Grid container spacing={2}>
         <Grid item xs={12} xl={8}>
           <Panel
-            title="Entregas em tempo real"
+            title="Entregas em operação"
             action={
               <Button component={NavLink} to="/deliveries" size="small">
                 Ver entregas
@@ -258,7 +290,7 @@ export function DashboardPage() {
                     ))}
                     <DividerLine />
                     <Typography variant="caption" color="text.secondary">
-                      Total monitorado: {deliveryTotal}
+                      Total de entregas: {deliveryTotal}
                     </Typography>
                   </Stack>
                 </Stack>
@@ -286,10 +318,14 @@ export function DashboardPage() {
                       <Stack
                         className="stagger-item"
                         sx={{ animationDelay: `${index * 35}ms` }}
+                        component={NavLink}
+                        to="/deliveries"
+                        aria-label={`Abrir entrega do pedido ${delivery.orderNumber}`}
                         direction="row"
                         spacing={1.5}
                         alignItems="center"
                         key={delivery.orderNumber}
+                        style={{ color: 'inherit', textDecoration: 'none' }}
                       >
                         <Typography minWidth={48} variant="body2" color="primary" fontWeight={900}>
                           {delivery.time}
@@ -370,7 +406,7 @@ export function DashboardPage() {
             title="Entregas em andamento"
             action={
               <Button component={NavLink} to="/deliveries" size="small">
-                Operar fila
+                Ver entregas
               </Button>
             }
           >
@@ -413,13 +449,13 @@ export function DashboardPage() {
                         <TableCell align="right">
                           <Stack direction="row" justifyContent="flex-end" spacing={0.5}>
                             <Tooltip title="Visualizar">
-                              <IconButton aria-label={`Visualizar ${delivery.orderNumber}`} size="small">
+                              <IconButton
+                                component={NavLink}
+                                to="/deliveries"
+                                aria-label={`Visualizar entrega ${delivery.orderNumber}`}
+                                size="small"
+                              >
                                 <VisibilityOutlinedIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Mais ações">
-                              <IconButton aria-label={`Mais ações ${delivery.orderNumber}`} size="small">
-                                <MoreHorizIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
                           </Stack>
@@ -452,10 +488,14 @@ export function DashboardPage() {
                       <Stack
                         className="stagger-item"
                         sx={{ animationDelay: `${index * 35}ms` }}
+                        component={NavLink}
+                        to="/incidents"
+                        aria-label={`Abrir ocorrência ${incident.title}`}
                         direction="row"
                         spacing={1.5}
                         alignItems="center"
                         key={incident.id}
+                        style={{ color: 'inherit', textDecoration: 'none' }}
                       >
                         <Box
                           sx={{

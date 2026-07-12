@@ -7,7 +7,7 @@ interface AuthContextValue {
   user: User | null;
   token: string | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, remember?: boolean) => Promise<void>;
   logout: () => void;
 }
 
@@ -15,17 +15,40 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 const TOKEN_KEY = 'logitrack.token';
 const USER_KEY = 'logitrack.user';
 
+function readStoredUser(): User | null {
+  const stored = localStorage.getItem(USER_KEY) ?? sessionStorage.getItem(USER_KEY);
+  if (!stored) return null;
+
+  try {
+    return JSON.parse(stored) as User;
+  } catch {
+    localStorage.removeItem(USER_KEY);
+    sessionStorage.removeItem(USER_KEY);
+    return null;
+  }
+}
+
+function clearSession() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(USER_KEY);
+}
+
 export function AuthProvider({ children }: PropsWithChildren) {
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
-  const [user, setUser] = useState<User | null>(() => {
-    const stored = localStorage.getItem(USER_KEY);
-    return stored ? (JSON.parse(stored) as User) : null;
-  });
+  const [token, setToken] = useState<string | null>(
+    () => localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY)
+  );
+  const [user, setUser] = useState<User | null>(readStoredUser);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setAuthToken(token);
-    if (!token) {
+    let active = true;
+    const storedToken = localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY);
+    const persistent = Boolean(localStorage.getItem(TOKEN_KEY));
+
+    setAuthToken(storedToken);
+    if (!storedToken) {
       setLoading(false);
       return;
     }
@@ -33,35 +56,62 @@ export function AuthProvider({ children }: PropsWithChildren) {
     api
       .get<User>('/auth/me')
       .then((response) => {
+        if (!active) return;
         setUser(response.data);
-        localStorage.setItem(USER_KEY, JSON.stringify(response.data));
+        (persistent ? localStorage : sessionStorage).setItem(USER_KEY, JSON.stringify(response.data));
       })
       .catch(() => {
-        localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem(USER_KEY);
+        if (!active) return;
+        clearSession();
         setToken(null);
         setUser(null);
         setAuthToken(null);
       })
-      .finally(() => setLoading(false));
-  }, [token]);
+      .finally(() => {
+        if (active) setLoading(false);
+      });
 
-  const login = useCallback(async (email: string, password: string) => {
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const login = useCallback(async (email: string, password: string, remember = true) => {
     const response = await api.post<AuthResponse>('/auth/login', { email, password });
-    localStorage.setItem(TOKEN_KEY, response.data.token);
-    localStorage.setItem(USER_KEY, JSON.stringify(response.data.user));
+    clearSession();
+    const storage = remember ? localStorage : sessionStorage;
+    storage.setItem(TOKEN_KEY, response.data.token);
+    storage.setItem(USER_KEY, JSON.stringify(response.data.user));
     setAuthToken(response.data.token);
     setToken(response.data.token);
     setUser(response.data.user);
+    setLoading(false);
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
+    clearSession();
     setAuthToken(null);
     setToken(null);
     setUser(null);
   }, []);
+
+  useEffect(() => {
+    const handleUnauthorized = () => logout();
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== TOKEN_KEY) return;
+      const nextToken = localStorage.getItem(TOKEN_KEY);
+      setAuthToken(nextToken);
+      setToken(nextToken);
+      setUser(nextToken ? readStoredUser() : null);
+    };
+
+    window.addEventListener('logitrack:unauthorized', handleUnauthorized);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('logitrack:unauthorized', handleUnauthorized);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, [logout]);
 
   const value = useMemo(
     () => ({ user, token, loading, login, logout }),

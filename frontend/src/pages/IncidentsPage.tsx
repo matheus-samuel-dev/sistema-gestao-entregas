@@ -49,6 +49,10 @@ export function IncidentsPage() {
       endpoint="/incidents"
       noun="Ocorrência"
       searchPlaceholder="Buscar por tipo, pedido ou responsável"
+      createLabel="Registrar ocorrência"
+      saveLabel="Salvar ocorrência"
+      updateLabel="Salvar ocorrência"
+      confirmDescription="A ocorrência será cancelada, mas permanecerá disponível no histórico e na auditoria."
       initialValues={{
         deliveryId: '',
         orderId: '',
@@ -72,10 +76,10 @@ export function IncidentsPage() {
         { key: 'orderId', label: 'Pedido vinculado', type: 'select', options: orderOptions },
         { key: 'type', label: 'Tipo', type: 'select', options: incidentTypeOptions, required: true },
         { key: 'priority', label: 'Prioridade', type: 'select', options: incidentPriorityOptions, required: true },
-        { key: 'status', label: 'Status', type: 'select', options: incidentStatusOptions, required: true },
+        { key: 'status', label: 'Status', type: 'select', options: incidentStatusOptions, required: true, when: 'edit' },
         { key: 'responsible', label: 'Responsável', required: true },
         { key: 'description', label: 'Descrição', type: 'textarea', required: true, xs: 12 },
-        { key: 'resolution', label: 'Resolução', type: 'textarea', xs: 12 }
+        { key: 'resolution', label: 'Resolução', type: 'textarea', required: true, xs: 12, visibleWhen: (form, editing) => editing && form.status === 'RESOLVED' }
       ]}
       filters={[
         { key: 'status', label: 'Status', type: 'select', options: incidentStatusOptions },

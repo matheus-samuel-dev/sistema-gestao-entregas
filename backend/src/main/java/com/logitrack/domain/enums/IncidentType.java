@@ -6,7 +6,12 @@ public enum IncidentType {
     WRONG_ADDRESS("Endereço incorreto"),
     VEHICLE_PROBLEM("Veículo com problema"),
     DAMAGED_PRODUCT("Produto avariado"),
-    PROBLEM_SOLVED("Problema resolvido");
+    REFUSED_DELIVERY("Recusa no recebimento"),
+    ACCIDENT("Acidente"),
+    THEFT_OR_LOSS("Roubo ou extravio"),
+    DOCUMENTATION_FAILURE("Falha de documentação"),
+    DRIVER_UNAVAILABLE("Indisponibilidade do motorista"),
+    OTHER("Outro");
 
     private final String label;
 

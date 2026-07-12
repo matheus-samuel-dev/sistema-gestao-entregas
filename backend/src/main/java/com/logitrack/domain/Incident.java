@@ -16,11 +16,18 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Index;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "incidents")
+@Table(name = "incidents", indexes = {
+        @Index(name = "idx_incidents_status", columnList = "status"),
+        @Index(name = "idx_incidents_priority", columnList = "priority"),
+        @Index(name = "idx_incidents_created_at", columnList = "createdAt"),
+        @Index(name = "idx_incidents_order", columnList = "order_id"),
+        @Index(name = "idx_incidents_delivery", columnList = "delivery_id")
+})
 public class Incident {
 
     @Id

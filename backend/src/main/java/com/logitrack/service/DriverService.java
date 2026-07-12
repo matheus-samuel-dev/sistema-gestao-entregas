@@ -9,7 +9,6 @@ import com.logitrack.repository.DriverRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
 
@@ -17,9 +16,11 @@ import java.util.List;
 public class DriverService {
 
     private final DriverRepository driverRepository;
+    private final AuditService auditService;
 
-    public DriverService(DriverRepository driverRepository) {
+    public DriverService(DriverRepository driverRepository, AuditService auditService) {
         this.driverRepository = driverRepository;
+        this.auditService = auditService;
     }
 
     @Transactional(readOnly = true)
@@ -43,8 +44,16 @@ public class DriverService {
                     throw new BusinessException("Já existe motorista com esta CNH.");
                 });
         var driver = new Driver();
-        apply(driver, request);
-        return DtoMapper.toDriver(driverRepository.save(driver));
+        driver.setName(request.name().trim());
+        driver.setPhone(request.phone().trim());
+        driver.setLicenseNumber(request.licenseNumber().trim());
+        driver.setStatus(request.status() == DriverStatus.UNAVAILABLE ? DriverStatus.UNAVAILABLE : DriverStatus.AVAILABLE);
+        driver.setCurrentVehicle(null);
+        driver.setDeliveriesCompleted(0);
+        driver.setSuccessRate(java.math.BigDecimal.valueOf(100));
+        var saved = driverRepository.save(driver);
+        auditService.record("DRIVER_CREATED", "DRIVER", saved.getId(), "Motorista " + saved.getName() + " adicionado.");
+        return DtoMapper.toDriver(saved);
     }
 
     @Transactional
@@ -55,7 +64,13 @@ public class DriverService {
                 .ifPresent(existing -> {
                     throw new BusinessException("Já existe motorista com esta CNH.");
                 });
-        apply(driver, request);
+        driver.setName(request.name().trim());
+        driver.setPhone(request.phone().trim());
+        driver.setLicenseNumber(request.licenseNumber().trim());
+        if (driver.getStatus() != DriverStatus.ON_ROUTE && request.status() != null && request.status() != DriverStatus.ON_ROUTE) {
+            driver.setStatus(request.status());
+        }
+        auditService.record("DRIVER_UPDATED", "DRIVER", driver.getId(), "Cadastro do motorista atualizado.");
         return DtoMapper.toDriver(driver);
     }
 
@@ -67,6 +82,7 @@ public class DriverService {
         }
         driver.setStatus(DriverStatus.INACTIVE);
         driver.setCurrentVehicle(null);
+        auditService.record("DRIVER_INACTIVATED", "DRIVER", driver.getId(), "Motorista inativado.");
         return DtoMapper.toDriver(driver);
     }
 
@@ -76,13 +92,4 @@ public class DriverService {
                 .orElseThrow(() -> new ResourceNotFoundException("Motorista não encontrado."));
     }
 
-    private void apply(Driver driver, Dtos.DriverRequest request) {
-        driver.setName(request.name());
-        driver.setPhone(request.phone());
-        driver.setLicenseNumber(request.licenseNumber());
-        driver.setStatus(request.status() == null ? DriverStatus.AVAILABLE : request.status());
-        driver.setCurrentVehicle(request.currentVehicle());
-        driver.setDeliveriesCompleted(request.deliveriesCompleted() == null ? 0 : request.deliveriesCompleted());
-        driver.setSuccessRate(request.successRate() == null ? BigDecimal.valueOf(98.0) : request.successRate());
-    }
 }

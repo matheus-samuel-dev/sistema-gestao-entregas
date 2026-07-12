@@ -13,11 +13,15 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.Index;
 
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "vehicles")
+@Table(name = "vehicles", indexes = {
+        @Index(name = "idx_vehicles_status", columnList = "status"),
+        @Index(name = "idx_vehicles_driver", columnList = "linked_driver_id")
+})
 public class Vehicle {
 
     @Id
