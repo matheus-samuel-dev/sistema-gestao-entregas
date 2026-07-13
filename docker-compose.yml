@@ -46,19 +46,13 @@ services:
       LOGITRACK_LOGIN_WINDOW_SECONDS: ${LOGITRACK_LOGIN_WINDOW_SECONDS:-900}
 
       LOGITRACK_ALLOWED_ORIGINS: "${LOGITRACK_ALLOWED_ORIGINS:-https://gestaoentregas.15-228-45-207.sslip.io,http://localhost:3001,http://localhost:5173}"
+
     ports:
       - "127.0.0.1:${BACKEND_PORT:-18080}:8080"
 
     depends_on:
       db:
         condition: service_healthy
-
-    healthcheck:
-      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/actuator/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
 
   frontend:
     build:
@@ -73,11 +67,14 @@ services:
       - "127.0.0.1:${FRONTEND_PORT:-3001}:80"
 
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend
 
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1/health >/dev/null 2>&1 || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "wget -q -O - http://127.0.0.1/health >/dev/null 2>&1 || exit 1"
+        ]
       interval: 15s
       timeout: 5s
       retries: 5
