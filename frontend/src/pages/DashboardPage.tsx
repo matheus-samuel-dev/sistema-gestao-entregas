@@ -108,12 +108,31 @@ function Panel({
   minHeight?: number;
 }) {
   return (
-    <Card className="soft-card" sx={{ height: '100%' }}>
-      <CardContent sx={{ minHeight }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+    <Card
+      className="soft-card"
+      sx={{
+        width: '100%',
+        height: 'auto'
+      }}
+    >
+      <CardContent
+        sx={{
+          minHeight,
+          '&:last-child': {
+            paddingBottom: 3
+          }
+        }}
+      >
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+          mb={2}
+        >
           <Typography variant="h6">{title}</Typography>
           {action}
         </Stack>
+
         {children}
       </CardContent>
     </Card>
@@ -230,7 +249,7 @@ export function DashboardPage() {
             })}
       </Box>
 
-      <Grid container spacing={2}>
+      <Grid container spacing={2} alignItems="flex-start">
         <Grid item xs={12} xl={8}>
           <Panel
             title="Entregas em operação"
